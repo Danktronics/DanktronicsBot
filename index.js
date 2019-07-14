@@ -17,7 +17,7 @@ let messageRate = new Map();
 let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
-let queueDict = {};
+let playDict = [];
 
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
@@ -37,9 +37,13 @@ function record(voiceConnection) {
     voiceDataStream.on("error", console.error);
 }
 
-function read(voiceConnection, channel) {
-    // This function somehow needs to convince the bot to read all the messages from channel out loud into voiceConnection.
-    queueDict[channel] = [];
+function tts(message) {
+    if (getMe(message.channel.guild).voiceState == null) {
+        playDict.splice(playDict.indexOf(message.channel));
+        return;
+    }
+    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+    voiceConnection.play(/* um?? */);
 }
 
 function saveRecording(voiceReceiver) {
@@ -81,7 +85,7 @@ client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
     if (!message.content.startsWith(prefix)) return;
-    if (message.channel in queueDict) queueDict[message.channel].push(message.content);
+    if (message.channel in playDict) tts(message);
     
     let strippedMessage = message.content.slice(prefix.length);
     let args = strippedMessage.split(" ");
@@ -110,7 +114,7 @@ client.on("messageCreate", message => {
     if (cmd === "read") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-        read(client.voiceConnections.get(message.channel.guild.id), message.channel);
+        playDict.push(channel);
         message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
