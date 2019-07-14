@@ -17,6 +17,8 @@ let messageRate = new Map();
 let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
+let queueDict = {};
+
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
 }
@@ -36,10 +38,8 @@ function record(voiceConnection) {
 }
 
 function read(voiceConnection, channel) {
-    /*
-    This function somehow needs to convince the bot to read all the messages from channel out loud into voiceConnection.
-    If it isn't obvious yet, I have literally no clue how to do this right now.
-    */
+    // This function somehow needs to convince the bot to read all the messages from channel out loud into voiceConnection.
+    queueDict[channel] = [];
 }
 
 function saveRecording(voiceReceiver) {
@@ -81,6 +81,7 @@ client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
     if (!message.content.startsWith(prefix)) return;
+    if (message.channel in queueDict) queueDict[message.channel].push(message.content);
     
     let strippedMessage = message.content.slice(prefix.length);
     let args = strippedMessage.split(" ");
