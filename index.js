@@ -35,6 +35,13 @@ function record(voiceConnection) {
     voiceDataStream.on("error", console.error);
 }
 
+function read(voiceConnection, channel) {
+    /*
+    This function somehow needs to convince the bot to read all the messages from channel out loud into voiceConnection.
+    If it isn't obvious yet, I have literally no clue how to do this right now.
+    */
+}
+
 function saveRecording(voiceReceiver) {
     return new Promise((resolve, reject) => {
         const Lame = require("node-lame").Lame;
@@ -98,6 +105,12 @@ client.on("messageCreate", message => {
         saveRecording(recordingData.find(d => client.channelGuildMap[d.channelID] === message.channel.guild.id))
         .then(() => message.channel.createMessage("Ended recording"))
         .catch(() => message.channel.createMessage("Error occurred"));
+    }
+    if (cmd === "read") {
+        let voiceState = getMe(message.channel.guild).voiceState;
+        if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
+        read(client.voiceConnections.get(message.channel.guild.id), message.channel);
+        message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
         message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 39,997 messages.");
