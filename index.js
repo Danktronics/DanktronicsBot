@@ -37,12 +37,20 @@ function record(voiceConnection) {
     voiceDataStream.on("error", console.error);
 }
 
+function collectionValuesContain(c, o) {
+    for (let [k, v] of c) {
+        if (v == o) return true;
+    }
+    return false;
+}
+
 function tts(message) {
     if (getMe(message.channel.guild).voiceState == null) {
         playDict.splice(playDict.indexOf(message.channel));
         return;
     }
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+    if (!collectionValuesContain(voiceConnection.channel.members, message.author.fetchMember()) return;
     voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+encodeURIComponent(message.content));
 }
 
