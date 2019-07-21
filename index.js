@@ -43,7 +43,7 @@ function tts(message) {
         return;
     }
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+encodeURIComponent(message.content.toLowerCase()));
+    voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+encodeURIComponent(message.content));
 }
 
 function saveRecording(voiceReceiver) {
