@@ -43,8 +43,7 @@ function tts(message) {
         return;
     }
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    msg = message.content.toLowerCase().replace(/ /g, "+"); //best I could easily do for converting string to link form
-    voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+msg);
+    voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+encodeURIComponent(message.content.toLowerCase()));
 }
 
 function saveRecording(voiceReceiver) {
