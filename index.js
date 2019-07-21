@@ -84,8 +84,8 @@ client.on("ready", () => {
 client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
-    if (!message.content.startsWith(prefix)) return;
     if (message.channel in playDict) tts(message);
+    if (!message.content.startsWith(prefix)) return;
     
     let strippedMessage = message.content.slice(prefix.length);
     let args = strippedMessage.split(" ");
