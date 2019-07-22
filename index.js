@@ -17,6 +17,8 @@ let messageRate = new Map();
 let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
+let playDict = [];
+
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
 }
@@ -33,6 +35,16 @@ function record(voiceConnection) {
         recordingData.get(voiceConnection.channelID).data.push(data);
     });
     voiceDataStream.on("error", console.error);
+}
+
+function tts(message) {
+    if (getMe(message.channel.guild).voiceState == null) {
+        playDict.splice(playDict.indexOf(message.channel.id));
+        return;
+    }
+
+    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(message.content));
 }
 
 function saveRecording(voiceReceiver) {
@@ -73,6 +85,7 @@ client.on("ready", () => {
 client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
+    if (playDict.includes(message.channel.id)) tts(message);
     if (!message.content.startsWith(prefix)) return;
     
     let strippedMessage = message.content.slice(prefix.length);
@@ -86,6 +99,9 @@ client.on("messageCreate", message => {
         .then(() => message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`))
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
     }
+    if (cmd === "help") {
+        message.channel.send("You have been helped.");
+    }
     if (cmd === "record") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
@@ -98,6 +114,12 @@ client.on("messageCreate", message => {
         saveRecording(recordingData.find(d => client.channelGuildMap[d.channelID] === message.channel.guild.id))
         .then(() => message.channel.createMessage("Ended recording"))
         .catch(() => message.channel.createMessage("Error occurred"));
+    }
+    if (cmd === "read") {
+        let voiceState = getMe(message.channel.guild).voiceState;
+        if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
+        playDict.push(message.channel.id);
+        message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
         message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 39,997 messages.");
