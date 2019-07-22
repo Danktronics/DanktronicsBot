@@ -9,7 +9,7 @@
   "author": "Sei4or",
   "license": "ISC",
   "dependencies": {
-    "eris": "^0.9.0",
+    "eris": "^0.10.1",
     "lamejs": "^1.2.0",
     "node-lame": "^1.2.0",
     "stream-buffers": "^3.0.2"
