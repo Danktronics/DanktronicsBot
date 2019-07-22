@@ -50,7 +50,7 @@ function tts(message) {
         return;
     }
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    if (!collectionValuesContain(voiceConnection.channel.members, message.author.fetchMember()) return;
+    if (!message.channel.guild.channels.get(getMe(message.channel.guild).voiceState.channelID).members.has(message.author.id)) return;
     voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+encodeURIComponent(message.content));
 }
 
