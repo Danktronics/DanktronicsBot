@@ -39,12 +39,12 @@ function record(voiceConnection) {
 
 function tts(message) {
     if (getMe(message.channel.guild).voiceState == null) {
-        playDict.splice(playDict.indexOf(message.channel));
+        playDict.splice(playDict.indexOf(message.channel.id));
         return;
     }
+
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    msg = message.content.toLowerCase().replace(/ /g, "+"); //best I could easily do for converting string to link form
-    voiceConnection.playStream("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q="+msg);
+    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(message.content));
 }
 
 function saveRecording(voiceReceiver) {
@@ -85,8 +85,8 @@ client.on("ready", () => {
 client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
+    if (playDict.includes(message.channel.id)) tts(message);
     if (!message.content.startsWith(prefix)) return;
-    if (message.channel in playDict) tts(message);
     
     let strippedMessage = message.content.slice(prefix.length);
     let args = strippedMessage.split(" ");
@@ -115,7 +115,7 @@ client.on("messageCreate", message => {
     if (cmd === "read") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-        playDict.push(channel);
+        playDict.push(message.channel.id);
         message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
