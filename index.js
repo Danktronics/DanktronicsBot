@@ -42,7 +42,7 @@ function tts(message) {
         playDict.splice(playDict.indexOf(message.channel.id));
         return;
     }
-
+    if (message.content.length<1) return;
     voiceConnection = client.voiceConnections.get(message.channel.guild.id);
     voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(message.content));
 }
