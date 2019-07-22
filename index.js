@@ -25,7 +25,7 @@ function playTTS(param) {
         voiceConnection = getVoiceConnection();
         voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
         let streamEndHandler = () => {
-            voiceConnection.removeListener(streamEndHandler);
+            voiceConnection.removeListener("end", streamEndHandler);
             resolve();
         }
         voiceConnection.on("end", streamEndHandler);
