@@ -37,13 +37,6 @@ function record(voiceConnection) {
     voiceDataStream.on("error", console.error);
 }
 
-function collectionValuesContain(c, o) {
-    for (let [k, v] of c) {
-        if (v == o) return true;
-    }
-    return false;
-}
-
 function tts(message) {
     if (getMe(message.channel.guild).voiceState == null) {
         playDict.splice(playDict.indexOf(message.channel));
