@@ -22,7 +22,7 @@ let playDict = [];
 
 function playTTS(param) {
     return new Promise((resolve, reject) => {
-        voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+        voiceConnection = client.voiceConnections.random();
         voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
         voiceConnection.on("end", resolve);
     });
