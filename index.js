@@ -24,11 +24,13 @@ function playTTS(param) {
     return new Promise((resolve, reject) => {
         voiceConnection = getVoiceConnection();
         voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
-        let streamEndHandler = () => {
-            voiceConnection.removeListener("end", streamEndHandler);
+        
+        voiceConnection.on("error", console.error);
+        voiceConnection.on("end", () => {
+            voiceConnection.removeAllListeners("error");
+            voiceConnection.removeAllListeners("end");
             resolve();
-        }
-        voiceConnection.on("end", streamEndHandler);
+        });
     });
 }
 let playQueue = new Queue(client, playTTS);
