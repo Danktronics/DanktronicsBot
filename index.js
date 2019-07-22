@@ -105,7 +105,7 @@ client.on("messageCreate", message => {
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
     }
     if (cmd === "help") {
-        message.channel.createMessage("You have been helped.");
+        message.channel.createMessage("You have been helped!");
     }
     if (cmd === "record") {
         let voiceState = getMe(message.channel.guild).voiceState;
