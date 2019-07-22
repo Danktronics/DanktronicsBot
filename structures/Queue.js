@@ -23,7 +23,7 @@ class Queue {
 
         for (let i = 0; i < this.internalQueue.length; i++) {
             await this.executor(this.internalQueue[i]);
-            this.internalQueue.unshift();
+            this.internalQueue.shift();
         }
 
         this.processing = false;
