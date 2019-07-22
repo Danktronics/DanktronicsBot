@@ -6,6 +6,7 @@ const settings = require("./settings.json");
 
 const client = new Eris(settings.token);
 const EmbedBuilder = require("./structures/EmbedBuilder");
+const Queue = require("./structures/Queue");
 
 const danktronics = "293935518801199106";
 const starboard = "502655582247845898";
