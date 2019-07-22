@@ -27,7 +27,7 @@ function playTTS(param) {
         voiceConnection.on("end", resolve);
     });
 }
-let playQueue = new Queue(playTTS);
+let playQueue = new Queue(client, playTTS);
 
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
