@@ -20,8 +20,11 @@ let recordingData = new Eris.Collection();
 let playDict = [];
 
 function playTTS(param) {
-    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
+    return new Promise((resolve, reject) => {
+        voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+        voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
+        voiceConnection.on("end", resolve);
+    });
 }
 let playQueue = new Queue(playTTS);
 
