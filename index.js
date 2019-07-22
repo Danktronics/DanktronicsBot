@@ -19,6 +19,12 @@ let recordingData = new Eris.Collection();
 
 let playDict = [];
 
+function playTTS(param) {
+    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
+    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
+}
+let playQueue = new Queue(playTTS);
+
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
 }
@@ -43,8 +49,7 @@ function tts(message) {
         return;
     }
 
-    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(message.content));
+    playQueue.enqueue(message.cleanContent);
 }
 
 function saveRecording(voiceReceiver) {
