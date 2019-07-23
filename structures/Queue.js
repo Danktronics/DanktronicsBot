@@ -26,8 +26,8 @@ class Queue {
             await this.executor(tempQueue[i]);
         }
 
-        delete tempQueue;
         this.internalQueue = this.internalQueue.filter(param => !tempQueue.includes(param));
+        delete tempQueue;
         this.processing = false;
     }
 
