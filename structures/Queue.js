@@ -3,7 +3,7 @@ class Queue {
         this.internalQueue = [];
         this.client = client;
         this.executor = executor;
-        this.queueCleaner = setInterval(this.process, 30000);
+        this.queueCleaner = setInterval(this.process.bind(this), 30000);
     }
 
     enqueue(param) {
