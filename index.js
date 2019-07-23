@@ -6,6 +6,7 @@ const settings = require("./settings.json");
 
 const client = new Eris(settings.token);
 const EmbedBuilder = require("./structures/EmbedBuilder");
+const Queue = require("./structures/Queue");
 
 const danktronics = "293935518801199106";
 const starboard = "502655582247845898";
@@ -18,6 +19,19 @@ let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
 let playDict = [];
+
+function playTTS(param) {
+    return new Promise((resolve, reject) => {
+        voiceConnection = getVoiceConnection();
+        voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
+        let streamEndHandler = () => {
+            voiceConnection.removeListener("end", streamEndHandler);
+            resolve();
+        }
+        voiceConnection.on("end", streamEndHandler);
+    });
+}
+let playQueue = new Queue(client, playTTS);
 
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
@@ -42,9 +56,14 @@ function tts(message) {
         playDict.splice(playDict.indexOf(message.channel.id));
         return;
     }
-    if (message.content.length<1) return;
-    voiceConnection = client.voiceConnections.get(message.channel.guild.id);
-    voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(message.cleanContent));
+
+    playQueue.enqueue(message.cleanContent);
+}
+
+function getVoiceConnection() {
+    let voiceConnection = client.voiceConnections.random();
+    voiceConnection.on("error", console.error);
+    return voiceConnection;
 }
 
 function saveRecording(voiceReceiver) {
