@@ -3,6 +3,7 @@ class Queue {
         this.internalQueue = [];
         this.client = client;
         this.executor = executor;
+        this.queueCleaner = setTimeout(this.process);
     }
 
     enqueue(param) {
