@@ -21,11 +21,13 @@ class Queue {
 
         this.processing = true;
 
-        for (let i = 0; i < this.internalQueue.length; i++) {
-            await this.executor(this.internalQueue[i]);
-            this.internalQueue.shift();
+        let tempQueue = this.internalQueue;
+        for (let i = 0; i < tempQueue.length; i++) {
+            await this.executor(tempQueue[i]);
         }
 
+        delete tempQueue;
+        this.internalQueue = [];
         this.processing = false;
     }
 
