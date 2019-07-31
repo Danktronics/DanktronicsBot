@@ -19,10 +19,12 @@ let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
 let playDict = [];
+let ttsVolume = 1;
 
 function playTTS(param) {
     return new Promise((resolve, reject) => {
         voiceConnection = getVoiceConnection();
+        voiceConnection.setVolume(ttsVolume);
         voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
         let streamEndHandler = () => {
             voiceConnection.removeListener("end", streamEndHandler);
@@ -142,6 +144,12 @@ client.on("messageCreate", message => {
     }
     if (cmd === "rate") {
         message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 39,997 messages.");
+    }
+    if (cmd === "ttsvolume") {
+        let number = parseInt(args[1]);
+        if (isNaN(number) && number >= 1 && number <= 9) return message.channel.createMessage("Please provide a valid number");
+        ttsVolume = number;
+        message.channel.createMessage("Successfully set tts volume to " + ttsVolume);
     }
 });
 
