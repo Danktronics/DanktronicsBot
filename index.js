@@ -25,7 +25,7 @@ function playTTS(param) {
     return new Promise((resolve, reject) => {
         voiceConnection = getVoiceConnection();
         voiceConnection.setVolume(ttsVolume);
-        voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param));
+        voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param), {inlineVolume: true});
         let streamEndHandler = () => {
             voiceConnection.removeListener("end", streamEndHandler);
             resolve();
