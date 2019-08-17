@@ -56,22 +56,22 @@ class RichEmbed {
     }
 
     setVideo(url) {
-        this.video = {url: url};
+        this.video = {url};
         return this;
     }
 
     setProvider(name, url) {
-        this.video = {name: name, url: url};
+        this.video = {name, url};
         return this;
     } 
 
     setAuthor(name, url, icon_url) {
-        this.author = {name: name, url: url, icon_url};
+        this.author = {name, url, icon_url};
         return this;
     }
 
     addField(name, value, inline = false) {
-        this.fields.push({name: name, value: value, inline: inline ? inline : false});
+        this.fields.push({name, value, inline});
         return this;
     }
 
@@ -90,7 +90,7 @@ class RichEmbed {
             provider: this.provider,
             author: this.author,
             fields: this.fields
-        }
+        };
     }
 }
 
