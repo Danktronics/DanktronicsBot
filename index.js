@@ -23,20 +23,20 @@ let ttsVolume = 1;
 
 function playTTS(param) {
     return new Promise((resolve, reject) => {
-        voiceConnection = getVoiceConnection();
+        let voiceConnection = getVoiceConnection();
         voiceConnection.setVolume(ttsVolume);
         voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param), {inlineVolume: true});
         let streamEndHandler = () => {
             voiceConnection.removeListener("end", streamEndHandler);
             resolve();
-        }
+        };
         voiceConnection.on("end", streamEndHandler);
     });
 }
 let playQueue = new Queue(client, playTTS);
 
 function linkMessage(message) {
-    return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`
+    return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`;
 }
 
 function getMe(guild) {
