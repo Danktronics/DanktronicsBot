@@ -152,9 +152,10 @@ client.on("messageCreate", message => {
         ttsVolume = number;
         message.channel.createMessage("Successfully set tts volume to " + ttsVolume);
     }
-    if (cmd == "fix") {
+    if (cmd === "fix") {
         if (lastFix == null || Date.now() - lastFix > 1000 * 60 * 60 * 30) {
             client.disconnect({reconnect: "auto"});
+            lastFix = Date.now();
         }
     }
 });
