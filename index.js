@@ -153,6 +153,10 @@ client.on("messageCreate", message => {
     }
 });
 
+client.on("voiceChannelLeave", (member, oldChannel) => {
+    if (member.id === client.user.id && oldChannel != null) playDict = playDict.filter(channel => channel.id !== oldChannel.id); 
+});
+
 // STARBOARD
 
 /*client.on("channelPinUpdate", async (channel, timestamp, oldTimestamp) => {
