@@ -144,7 +144,7 @@ client.on("messageCreate", message => {
         message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
-        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 39,997 messages.");
+        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 70,925 messages.");
     }
     if (cmd === "ttsvolume") {
         let number = parseInt(args[1]);
@@ -154,7 +154,9 @@ client.on("messageCreate", message => {
     }
     if (cmd === "fix") {
         if (lastFix == null || Date.now() - lastFix > 1000 * 60 * 60 * 30) {
+            message.channel.createMessage("Time to die");
             client.disconnect({reconnect: "auto"});
+            playDict = [];
             lastFix = Date.now();
         }
     }
@@ -202,6 +204,9 @@ client.on("messageReactionAdd", async (message, emoji, userID) => {
     .setTimestamp(new Date());
 
     if (latestMessage.attachments.length > 0) embed.setImage(latestMessage.attachments[0].url);
+    if (latestMessage.embeds.length > 0) {
+        if (latestMessage.embeds[0].description != null) embed.setDescription(`> ${latestMessage.embeds[0].description}`);
+    }
 
     guild.channels.get(starboard).createMessage({content: `<#${channel.id}>`, embed: embed.render()});
 });
