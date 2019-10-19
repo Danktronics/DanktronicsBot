@@ -18,6 +18,7 @@ let messageRate = new Map();
 let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
 let recordingData = new Eris.Collection();
 
+let lastFix;
 let playDict = [];
 let ttsVolume = 1;
 
@@ -150,6 +151,11 @@ client.on("messageCreate", message => {
         if (isNaN(number) && number >= 1 && number <= 9) return message.channel.createMessage("Please provide a valid number");
         ttsVolume = number;
         message.channel.createMessage("Successfully set tts volume to " + ttsVolume);
+    }
+    if (cmd == "fix") {
+        if (lastFix == null || Date.now() - lastFix > 1000 * 60 * 60 * 30) {
+            client.disconnect({reconnect: "auto"});
+        }
     }
 });
 
