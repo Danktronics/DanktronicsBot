@@ -4,7 +4,14 @@ const lamejs = require("lamejs");
 const streamBuffers = require("stream-buffers");
 const settings = require("./settings.json");
 
-const client = new Eris(settings.token);
+const client = new Eris(settings.token, {
+    intents: [
+        "guilds",
+        "guildMessages",
+        "guildVoiceStates",
+        "guildMessageReactions"
+    ]
+});
 const EmbedBuilder = require("./structures/EmbedBuilder");
 const Queue = require("./structures/Queue");
 
@@ -108,6 +115,11 @@ client.on("messageCreate", message => {
     //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
 
     if (playDict.includes(message.channel.id)) tts(message);
+    if (message.content.toLowerCase() === "cough") {
+        message.member.addRole("687873868106432661", "User coughed in public and needed to be quarantined immediately for the safety of the server.");
+        message.channel.createMessage("This is the CDC. You are being quarantied as you are suspected to have a deadly virus pandemic. UwU");
+    }
+
     if (!message.content.startsWith(prefix)) return;
     
     let strippedMessage = message.content.slice(prefix.length);
@@ -149,6 +161,7 @@ client.on("messageCreate", message => {
     if (cmd === "ttsvolume") {
         let number = parseInt(args[1]);
         if (isNaN(number) && number >= 1 && number <= 9) return message.channel.createMessage("Please provide a valid number");
+        if (number === ttsVolume) return message.channel.createMessage("The volume you have selected is the same as the current volume.");
         ttsVolume = number;
         message.channel.createMessage("Successfully set tts volume to " + ttsVolume);
     }
