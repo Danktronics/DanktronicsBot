@@ -4,7 +4,14 @@ const lamejs = require("lamejs");
 const streamBuffers = require("stream-buffers");
 const settings = require("./settings.json");
 
-const client = new Eris(settings.token);
+const client = new Eris(settings.token, {
+    intents: [
+        "guilds",
+        "guildMessages",
+        "guildVoiceStates",
+        "guildMessageReactions"
+    ]
+});
 const EmbedBuilder = require("./structures/EmbedBuilder");
 const Queue = require("./structures/Queue");
 
