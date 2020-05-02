@@ -173,6 +173,9 @@ client.on("messageCreate", message => {
             lastFix = Date.now();
         }
     }
+    if (cmd === "log") {
+        console.log(message.content);
+    }
 });
 
 client.on("voiceChannelLeave", (member, oldChannel) => {
