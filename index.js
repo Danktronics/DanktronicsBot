@@ -174,7 +174,9 @@ client.on("messageCreate", message => {
         }
     }
     if (cmd === "log") {
+        console.log(message.author.username);
         console.log(message.content);
+        message.channel.createMessage("Successfully logged message. You have been helped!");
     }
 });
 
