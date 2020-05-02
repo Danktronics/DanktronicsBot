@@ -156,7 +156,7 @@ client.on("messageCreate", message => {
         message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
-        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 87,779 messages.");
+        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 87,780 messages.");
     }
     if (cmd === "ttsvolume") {
         let number = parseInt(args[1]);
