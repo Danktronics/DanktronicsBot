@@ -29,6 +29,12 @@ let lastFix;
 let playDict = [];
 let ttsVolume = 1;
 
+function getVoiceConnection() {
+    let voiceConnection = client.voiceConnections.random();
+    voiceConnection.on("error", console.error);
+    return voiceConnection;
+}
+
 function playTTS(param) {
     return new Promise((resolve, reject) => {
         let voiceConnection = getVoiceConnection();
@@ -68,12 +74,6 @@ function tts(message) {
     }
 
     playQueue.enqueue(message.cleanContent);
-}
-
-function getVoiceConnection() {
-    let voiceConnection = client.voiceConnections.random();
-    voiceConnection.on("error", console.error);
-    return voiceConnection;
 }
 
 function saveRecording(voiceReceiver) {
