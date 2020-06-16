@@ -3,18 +3,12 @@
   "version": "1.0.1",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "vows --spec"
-  },
   "author": "Sei4or",
   "license": "ISC",
   "dependencies": {
-    "eris": "^0.13.0",
+    "eris": "^0.13.1",
     "lamejs": "^1.2.0",
     "node-lame": "^1.2.0",
     "stream-buffers": "^3.0.2"
-  },
-  "devDependencies": {
-    "vows": "latest"
   }
 }
