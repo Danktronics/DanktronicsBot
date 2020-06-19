@@ -4,12 +4,12 @@ use std::{
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
     model::{channel::Message, gateway::Ready},
-    prelude::*,
-    voice::AudioReceiver
+    prelude::*
 };
 
 use model::{
-    settings::GuildSettings
+    settings::GuildSettings,
+    voice::Recorder
 };
 
 mod model;
@@ -54,8 +54,9 @@ impl EventHandler for MainHandler {
         }
 
         let raw_command_message: String = message.content.chars().skip(PREFIX.len()).collect();
-        let arguments: Vec<&str> = raw_command_message.split(" ").collect();
+        let mut arguments: Vec<&str> = raw_command_message.split(" ").collect();
         let command: &str = arguments[0];
+        arguments.remove(0);
 
         match command {
             "join" => {
@@ -84,16 +85,88 @@ impl EventHandler for MainHandler {
                 message.channel_id.say(&ctx.http, "You have been helped!");
             },
             "record" => {
-
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.listen(Some(Box::new(Recorder::new())));
+                    message.channel_id.say(&ctx.http, "Recording...");
+                } else {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                }
             },
             "stop" => {
-
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.listen(None);
+                    message.channel_id.say(&ctx.http, "Ended Recording");
+                } else {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                }
+            },
+            "leave" => {
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if manager.get(message.guild_id.unwrap()).is_some() {
+                    manager.remove(message.guild_id.unwrap());
+                    message.channel_id.say(&ctx.http, "Left");
+                } else {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                }
             },
             "read" => {
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if manager.get(message.guild_id.unwrap()).is_none() {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                    return;
+                }
 
+                let mut data = ctx.data.write();
+                let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+                if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
+                    guild_settings_map.insert(message.guild_id.unwrap().0, GuildSettings::new());
+                }
+
+                let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
+                if guild_settings.tts_channels.contains(&message.channel_id.0) {
+                    guild_settings.tts_channels.remove(&message.channel_id.0);
+                    message.channel_id.say(&ctx.http, "Removed this channel from TTS");
+                } else {
+                    guild_settings.tts_channels.insert(message.channel_id.0);
+                    message.channel_id.say(&ctx.http, "Added this channel to TTS");
+                }
             },
             "ttsvolume" => {
+                if arguments.len() == 0 {
+                    message.channel_id.say(&ctx.http, "You must provide the new volume level");
+                    return;
+                }
 
+                let new_volume = match arguments[0].parse::<u16>() {
+                    Ok(vol) => vol,
+                    Err(error) => {
+                        message.channel_id.say(&ctx.http, "You must provide a valid number");
+                        return;
+                    }
+                };
+
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if manager.get(message.guild_id.unwrap()).is_none() {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                    return;
+                }
+
+                let mut data = ctx.data.write();
+                let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+                if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
+                    guild_settings_map.insert(message.guild_id.unwrap().0, GuildSettings::new());
+                }
+
+                let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
+                guild_settings.volume = new_volume;
+                message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume));
             },
             _ => ()
         }
