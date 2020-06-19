@@ -4,8 +4,10 @@ use std::{
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
     model::{channel::Message, gateway::Ready},
-    prelude::*
+    prelude::*,
+    voice
 };
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 use model::{
     settings::GuildSettings,
@@ -37,7 +39,25 @@ impl EventHandler for MainHandler {
     }
 
     fn message(&self, ctx: Context, message: Message) {
-        // TODO: Queue TTS message
+        {
+            let data = ctx.data.read();
+            let guild_settings_map = data.get::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+            let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().0);
+            if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
+                let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock();
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    let possible_source = voice::ytdl(&format!("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q={}", utf8_percent_encode(message.content_safe(&ctx.cache).as_str(), NON_ALPHANUMERIC)));
+                    if possible_source.is_ok() {
+                        let locked_audio = handler.play_returning(possible_source.unwrap());
+                        let mut audio = locked_audio.lock();
+                        audio.volume(guild_settings.unwrap().volume.into());
+                    } else {
+                        println!("Error playing TTS: {:?}", possible_source.err());
+                    }
+                }
+            }
+        }
 
         if message.content.to_lowercase() == "cough" {
             let role_result = ctx.cache.read().guilds.get(&message.guild_id.unwrap()).unwrap().read().member(&ctx, message.author.id).unwrap().add_role(&ctx.http, 687873868106432661);
