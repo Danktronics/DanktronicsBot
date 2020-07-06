@@ -7,7 +7,7 @@ const client = new Eris(settings.token);
 const EmbedBuilder = require("./structures/EmbedBuilder");
 const DankGuild = require("./structures/DankGuild");
 
-const prefix = "d!";
+const prefix = "d.";
 const starEmoji = "⭐";
 const starboardChannelName = "starboard";
 
