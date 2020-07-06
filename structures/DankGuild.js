@@ -10,7 +10,7 @@ class DankGuild {
         this.recording = false;
         this.rawRecordingData = [];
         this.ttsChannels = [];
-        this.ttsQueue = new Queue(this.playMessageTTS);
+        this.ttsQueue = new Queue(this.playMessageTTS.bind(this));
         this.ttsVolume = 1;
     }
 
@@ -18,16 +18,16 @@ class DankGuild {
         return this.client.voiceConnections.find(voiceConnection => this.client.channelGuildMap[voiceConnection.channelID] === this.id);
     }
 
-    playMessageTTS() {
+    playMessageTTS(content) {
         return new Promise((resolve, reject) => {
-            let voiceConnection = getVoiceConnection();
+            let voiceConnection = this.getVoiceConnection();
             if (voiceConnection == null) {
                 resolve();
                 return;
             }
 
             if (voiceConnection.volume !== this.ttsVolume) voiceConnection.setVolume(this.ttsVolume);
-            voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param), {inlineVolume: true});
+            voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(content), {inlineVolume: true});
             let streamEndHandler = () => {
                 voiceConnection.removeListener("end", streamEndHandler);
                 resolve();
@@ -37,7 +37,7 @@ class DankGuild {
     }
 
     record() {
-        let voiceConnection = getVoiceConnection();
+        let voiceConnection = this.getVoiceConnection();
         if (voiceConnection == null) return;
         
         voiceConnection.play(new streamBuffers.ReadableStreamBuffer({frequency: 10, chunkSize: 2048}));
