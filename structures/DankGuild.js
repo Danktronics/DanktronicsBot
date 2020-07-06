@@ -18,6 +18,13 @@ class DankGuild {
         return this.client.voiceConnections.find(voiceConnection => this.client.channelGuildMap[voiceConnection.channelID] === this.id);
     }
 
+    setupVoiceConnection(voiceConnection) {
+        voiceConnection.on("error", error => {
+            console.error(error);
+            this.resetVoice();
+        });
+    }
+
     playMessageTTS(content) {
         return new Promise((resolve, reject) => {
             let voiceConnection = this.getVoiceConnection();
@@ -42,7 +49,7 @@ class DankGuild {
         
         voiceConnection.play(new streamBuffers.ReadableStreamBuffer({frequency: 10, chunkSize: 2048}));
         this.voiceDataStream = voiceConnection.receive("pcm");
-        recording = true;
+        this.recording = true;
         this._voiceDataStreamListener = this.voiceDataStream.on("data", (data, userID, timestamp, sequence) => {
             this.rawRecordingData.push(data);
         });
@@ -53,7 +60,7 @@ class DankGuild {
     }
 
     saveRecording() {
-        recording = false;
+        this.recording = false;
         this.voiceDataStream.removeListener("data", this._voiceDataStreamListener);
         this.voiceDataStream.removeListener("error", this._voiceDataStreamErrorListener);
 
@@ -88,10 +95,18 @@ class DankGuild {
     }
 
     async resetVoice() {
-        if (recording) await this.saveRecording().catch(error => console.error(error));
+        let voiceConnection = this.getVoiceConnection();
+        if (voiceConnection != null) {
+            voiceConnection.removeAllListeners();
+        }
+        if (this.recording) await this.saveRecording().catch(error => console.error(error));
         this.rawRecordingData = [];
         this.ttsQueue.clear();
         this.ttsVolume = 1;
+
+        if (this.ttsChannels.length > 0) {
+            this.client.createMessage(this.ttsChannels[0], "Voice has been reset due to an unexpected disconnect").catch(() => null);
+        }
     }
 }
 

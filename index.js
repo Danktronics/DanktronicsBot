@@ -50,7 +50,10 @@ client.on("messageCreate", message => {
         if (message.member.voiceState == null) return message.channel.createMessage("You are not in a voice channel.");
         let voiceChannel = message.channel.guild.channels.get(message.member.voiceState.channelID);
         voiceChannel.join()
-        .then(() => message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`))
+        .then(voiceConnection => {
+            dankGuild.setupVoiceConnection(voiceConnection);
+            message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`)
+        })
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
     }
     if (cmd === "help") {
