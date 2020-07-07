@@ -98,13 +98,13 @@ client.on("messageCreate", message => {
     }
 });
 
-client.on("voiceChannelLeave", (member, oldChannel) => {
+/*client.on("voiceChannelLeave", (member, oldChannel) => {
     if (member.id === client.user.id && oldChannel != null) {
         let dankGuild = dankGuilds.get(member.guild.id);
         if (dankGuild == null) return;
         dankGuild.resetVoice();
     }
-});
+});*/
 
 // STARBOARD
 
