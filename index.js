@@ -78,7 +78,7 @@ client.on("messageCreate", message => {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
         if (dankGuild.ttsChannels.includes(message.channel.id)) {
-            dankGuild.ttsChannels.splice(dank.ttsChannels.indexOf(message.channel.id));
+            dankGuild.ttsChannels.splice(dankGuild.ttsChannels.indexOf(message.channel.id));
             message.channel.createMessage("This channel is no longer being read.");
             return;
         }
