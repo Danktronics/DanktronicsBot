@@ -128,13 +128,13 @@ client.on("messageReactionAdd", async (message, emoji, userID) => {
         if (latestMessage.embeds[0].description != null) embed.setDescription(`> ${latestMessage.embeds[0].description}`);
     }
 
-    let starboardChannelID = guild.channels.find(channel => channel.name === starboardChannelName || "cool-messages");
-    if (starboardChannelID == null) {
+    let starboardChannel = guild.channels.find(channel => channel.name === starboardChannelName || "cool-messages");
+    if (starboardChannel == null) {
         message.channel.createMessage("This server does not have a starboard channel");
         return;
     }
 
-    guild.channels.get(starboardChannelID).createMessage({content: channel.mention, embed: embed.render()});
+    guild.channels.get(starboardChannel.id).createMessage({content: channel.mention, embed: embed.render()});
 });
 
 client.on("error", console.error);
