@@ -128,7 +128,7 @@ client.on("messageReactionAdd", async (message, emoji, userID) => {
         if (latestMessage.embeds[0].description != null) embed.setDescription(`> ${latestMessage.embeds[0].description}`);
     }
 
-    let starboardChannel = guild.channels.find(channel => channel.name === starboardChannelName || "cool-messages");
+    let starboardChannel = guild.channels.find(channel => channel.name === starboardChannelName || channel.name === "cool-messages");
     if (starboardChannel == null) {
         message.channel.createMessage("This server does not have a starboard channel");
         return;
