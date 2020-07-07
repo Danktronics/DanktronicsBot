@@ -19,9 +19,9 @@ class DankGuild {
     }
 
     setupVoiceConnection(voiceConnection) {
-        voiceConnection.on("error", error => {
+        this._voiceConnectionErrorListener = voiceConnection.on("error", error => {
             console.error(error);
-            this.resetVoice();
+            if (!voiceConnection.ready) this.resetVoice();
         });
     }
 
@@ -97,6 +97,7 @@ class DankGuild {
     async resetVoice() {
         let voiceConnection = this.getVoiceConnection();
         if (voiceConnection != null) {
+            this.client.leaveVoiceChannel(voiceConnection.channelID);
             voiceConnection.removeAllListeners();
         }
         if (this.recording) await this.saveRecording().catch(error => console.error(error));
