@@ -36,8 +36,19 @@ client.on("messageCreate", message => {
 
     if (dankGuild.ttsChannels.includes(message.channel.id)) {
         if (getMe(message.channel.guild).voiceState == null) return;
-    
-        dankGuild.ttsQueue.enqueue(message.cleanContent);
+        let out = message.cleanContent;
+        while (out.toLowerCase().contains("http")) {
+            let linkStart = out.indexOf("http");
+            let linkEnd = linkStart;
+            for(i = linkEnd; i<out.length; i++) {
+                if (out.charAt(i) === " ") {
+                    linkEnd = i;
+                    break;
+                }
+            }
+            out = out.substring(0, linkStart).concat(out.substring(linkEnd, out.length));
+        }
+        dankGuild.ttsQueue.enqueue(out);
     }
 
     if (!message.content.startsWith(prefix)) return;
