@@ -56,6 +56,13 @@ client.on("messageCreate", message => {
         })
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
     }
+    if (cmd === "leave") {
+        let voiceState = getMe(message.channel.guild).voiceState;
+        if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
+
+        dankGuild.resetVoice(false);
+        message.channel.createMessage("Disconnected");
+    }
     if (cmd === "help") {
         message.channel.createMessage("You have been helped!");
     }

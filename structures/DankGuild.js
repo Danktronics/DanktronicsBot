@@ -97,7 +97,7 @@ class DankGuild {
         });
     }
 
-    async resetVoice() {
+    async resetVoice(sendMessage = true) {
         let voiceConnection = this.getVoiceConnection();
         if (voiceConnection != null) {
             voiceConnection.removeAllListeners();
@@ -108,7 +108,7 @@ class DankGuild {
         this.ttsQueue.clear();
         this.ttsVolume = 1;
 
-        if (this.ttsChannels.length > 0) {
+        if (sendMessage && this.ttsChannels.length > 0) {
             this.client.createMessage(this.ttsChannels[0], "Voice has been reset due to an unexpected disconnect").catch(() => null);
         }
     }
