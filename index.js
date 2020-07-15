@@ -90,6 +90,7 @@ client.on("messageCreate", message => {
         message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 100,618 messages.");
     }
     if (cmd === "ttsvolume") {
+        if (args[1] == null) return message.channel.createMessage("You must supply a number.");
         let newVolume = parseInt(args[1]);
         if (isNaN(newVolume) && newVolume >= 1 && newVolume <= 9) return message.channel.createMessage("Please provide a valid number");
 
