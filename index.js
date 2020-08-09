@@ -41,7 +41,11 @@ client.on("messageCreate", message => {
     }
 
     if (message.channel.guild.id === "293935518801199106" && message.content.includes("Voice has been reset due to an unexpected disconnect")) {
-        message.member.addRole("503066915896295436").catch(() => null);
+        message.member.addRole("503066915896295436")
+        .then(() => {
+            setTimeout(() => message.member.removeRole("503066915896295436"), 60000);
+        })
+        .catch(() => null);
     }
 
     if (!message.content.startsWith(prefix)) return;
