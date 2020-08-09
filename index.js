@@ -40,6 +40,10 @@ client.on("messageCreate", message => {
         dankGuild.ttsQueue.enqueue(message.cleanContent);
     }
 
+    if (message.channel.guild.id === "293935518801199106" && message.content.includes("Voice has been reset due to an unexpected disconnect")) {
+        message.member.addRole("503066915896295436").catch(() => null);
+    }
+
     if (!message.content.startsWith(prefix)) return;
     
     let strippedMessage = message.content.slice(prefix.length);
