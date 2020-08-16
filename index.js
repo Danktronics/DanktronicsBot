@@ -40,7 +40,7 @@ client.on("messageCreate", message => {
         dankGuild.ttsQueue.enqueue(message.cleanContent);
     }
 
-    if (message.channel.guild.id === "293935518801199106" && message.content.includes("Voice has been reset due to an unexpected disconnect")) {
+    if (message.channel.guild.id === "293935518801199106" && message.content.includes("Voice has been reset due to an unexpected disconnection")) {
         message.member.addRole("503066915896295436")
         .then(() => {
             setTimeout(() => message.member.removeRole("503066915896295436"), 60000);
@@ -63,13 +63,6 @@ client.on("messageCreate", message => {
             message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`)
         })
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
-    }
-    if (cmd === "leave") {
-        let voiceState = getMe(message.channel.guild).voiceState;
-        if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-
-        dankGuild.resetVoice(false);
-        message.channel.createMessage("Disconnected");
     }
     if (cmd === "help") {
         message.channel.createMessage("You have been helped!");
