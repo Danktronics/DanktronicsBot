@@ -3,7 +3,14 @@ const fs = require("fs");
 const lamejs = require("lamejs");
 const settings = require("./settings.json");
 
-const client = new Eris(settings.token);
+const client = new Eris(settings.token, {
+    intents: [
+        "guilds",
+        "guildMessages",
+        "guildVoiceStates",
+        "guildMessageReactions"
+    ]
+});
 const EmbedBuilder = require("./structures/EmbedBuilder");
 const DankGuild = require("./structures/DankGuild");
 
@@ -20,6 +27,7 @@ function linkMessage(message) {
 function getMe(guild) {
     return guild.members.get(client.user.id);
 }
+
 
 client.on("ready", () => {
     console.log("Ready. I guess...");
@@ -105,6 +113,11 @@ client.on("messageCreate", message => {
         dankGuild.ttsVolume = newVolume;
         message.channel.createMessage("Successfully set tts volume to " + newVolume);
     }
+    if (cmd === "log") {
+        console.log(message.author.username);
+        console.log(message.content);
+        message.channel.createMessage("Successfully logged message. You have been helped!");
+    }
 });
 
 /*client.on("voiceChannelLeave", (member, oldChannel) => {
@@ -122,19 +135,28 @@ client.on("messageReactionAdd", async (message, emoji, userID) => {
     let guild = client.guilds.get(client.channelGuildMap[message.channel.id]);
     let channel = guild.channels.get(message.channel.id);
     
-    let latestMessage = await channel.getMessage(message.id);
-    if (latestMessage.reactions.size > 1) return;
+    let starredMessage;
+    if (message.reactions != null) {
+        if (message.reactions[starEmoji] == null) return;
+        if (message.reactions[starEmoji].count > 1) return;
+        starredMessage = message;
+    } else {
+        let retrievedMessage = await channel.getMessage(message.id);
+        if (retrievedMessage.reactions[starEmoji] == null) return;
+        if (retrievedMessage.reactions[starEmoji].count > 1) return;
+        starredMessage = retrievedMessage;
+    }
 
     let embed = new EmbedBuilder()
-    .setAuthor(`${latestMessage.author.username}#${latestMessage.author.discriminator}`, null, latestMessage.author.avatarURL)
-    .setDescription(latestMessage.content.length > 0 ? latestMessage.content : "Unknown")
-    .addField("Quick Link", `[Click Here](${linkMessage(latestMessage)})`)
-    .setFooter(latestMessage.id)
+    .setAuthor(`${starredMessage.author.username}#${starredMessage.author.discriminator}`, null, starredMessage.author.avatarURL)
+    .setDescription(starredMessage.content.length > 0 ? starredMessage.content : "Unknown")
+    .addField("Quick Link", `[Click Here](${linkMessage(starredMessage)})`)
+    .setFooter(starredMessage.id)
     .setTimestamp(new Date());
 
-    if (latestMessage.attachments.length > 0) embed.setImage(latestMessage.attachments[0].url);
-    if (latestMessage.embeds.length > 0) {
-        if (latestMessage.embeds[0].description != null) embed.setDescription(`> ${latestMessage.embeds[0].description}`);
+    if (starredMessage.attachments.length > 0) embed.setImage(starredMessage.attachments[0].url);
+    if (starredMessage.embeds.length > 0) {
+        if (starredMessage.embeds[0].description != null) embed.setDescription(`> ${starredMessage.embeds[0].description}`);
     }
 
     let starboardChannel = guild.channels.find(channel => channel.name === starboardChannelName || channel.name === "cool-messages");
