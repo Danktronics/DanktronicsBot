@@ -1,7 +1,6 @@
 const Eris = require("eris");
 const fs = require("fs");
 const lamejs = require("lamejs");
-const streamBuffers = require("stream-buffers");
 const settings = require("./settings.json");
 
 const client = new Eris(settings.token, {
@@ -13,41 +12,13 @@ const client = new Eris(settings.token, {
     ]
 });
 const EmbedBuilder = require("./structures/EmbedBuilder");
-const Queue = require("./structures/Queue");
+const DankGuild = require("./structures/DankGuild");
 
-const danktronics = "293935518801199106";
-const starboard = "502655582247845898";
-const starEmoji = "⭐";
 const prefix = "d.";
+const starEmoji = "⭐";
+const starboardChannelName = "starboard";
 
-let messageRate = new Map();
-
-let voiceEncoder = new lamejs.Mp3Encoder(1, 44100, 96);
-let recordingData = new Eris.Collection();
-
-let lastFix;
-let playDict = [];
-let ttsVolume = 1;
-
-function getVoiceConnection() {
-    let voiceConnection = client.voiceConnections.random();
-    voiceConnection.on("error", console.error);
-    return voiceConnection;
-}
-
-function playTTS(param) {
-    return new Promise((resolve, reject) => {
-        let voiceConnection = getVoiceConnection();
-        voiceConnection.setVolume(ttsVolume);
-        voiceConnection.play("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=" + encodeURIComponent(param), {inlineVolume: true});
-        let streamEndHandler = () => {
-            voiceConnection.removeListener("end", streamEndHandler);
-            resolve();
-        };
-        voiceConnection.on("end", streamEndHandler);
-    });
-}
-let playQueue = new Queue(client, playTTS);
+let dankGuilds = new Eris.Collection();
 
 function linkMessage(message) {
     return `https://discordapp.com/channels/${message.channel.guild.id}/${message.channel.id}/${message.id}`;
@@ -57,53 +28,6 @@ function getMe(guild) {
     return guild.members.get(client.user.id);
 }
 
-function record(voiceConnection) {
-    voiceConnection.play(new streamBuffers.ReadableStreamBuffer({frequency: 10, chunkSize: 2048}));
-    let voiceDataStream = voiceConnection.receive("pcm");
-    recordingData.set(voiceConnection.channelID, {channelID: voiceConnection.channelID, dataStream: voiceDataStream, data: []});
-    voiceDataStream.on("data", (data, userID, timestamp, sequence) => {
-        recordingData.get(voiceConnection.channelID).data.push(data);
-    });
-    voiceDataStream.on("error", console.error);
-}
-
-function tts(message) {
-    if (getMe(message.channel.guild).voiceState == null) {
-        playDict.splice(playDict.indexOf(message.channel.id));
-        return;
-    }
-
-    playQueue.enqueue(message.cleanContent);
-}
-
-function saveRecording(voiceReceiver) {
-    return new Promise((resolve, reject) => {
-        const Lame = require("node-lame").Lame;
- 
-        const encoder = new Lame({
-            "output": `./${Date.now()}.mp3`,
-            "bitrate": 96
-        }).setBuffer(Buffer.concat(voiceReceiver.data));
-        
-        encoder.encode()
-        .then(resolve)
-        .catch(reason => {
-            console.error(reason);
-            reject(reason);
-        });
-        /*let polishedData = [];
-        let mp3Data = voiceEncoder.encodeBuffer(Buffer.concat(voiceReceiver.data));
-    
-        /*polishedData.push(mp3Data);
-        mp3Data = voiceEncoder.flush();
-        polishedData.push(mp3Data);
-    
-        fs.writeFile("./test.mp3", mp3Data, error => {
-            if (error) reject();
-            resolve();
-        });*/
-    });
-}
 
 client.on("ready", () => {
     console.log("Ready. I guess...");
@@ -112,12 +36,24 @@ client.on("ready", () => {
 
 // COMMANDS
 client.on("messageCreate", message => {
-    //messageRate.set(message.channel.id, messageRate.get(message.channel.id) != null ? messageRate.get(message.channel.id) + 1 : 1);
+    let dankGuild = dankGuilds.get(message.channel.guild.id);
+    if (dankGuild == null) {
+        dankGuild = new DankGuild(message.channel.guild.id, client);
+        dankGuilds.set(message.channel.guild.id, dankGuild);
+    }
 
-    if (playDict.includes(message.channel.id)) tts(message);
-    if (message.content.toLowerCase() === "cough") {
-        message.member.addRole("687873868106432661", "User coughed in public and needed to be quarantined immediately for the safety of the server.");
-        message.channel.createMessage("This is the CDC. You are being quarantied as you are suspected to have a deadly virus pandemic. UwU");
+    if (dankGuild.ttsChannels.includes(message.channel.id)) {
+        if (getMe(message.channel.guild).voiceState == null) return;
+    
+        dankGuild.ttsQueue.enqueue(message.cleanContent);
+    }
+
+    if (message.channel.guild.id === "293935518801199106" && message.content.includes("Voice has been reset due to an unexpected disconnection")) {
+        message.member.addRole("503066915896295436")
+        .then(() => {
+            setTimeout(() => message.member.removeRole("503066915896295436"), 60000);
+        })
+        .catch(() => null);
     }
 
     if (!message.content.startsWith(prefix)) return;
@@ -130,7 +66,10 @@ client.on("messageCreate", message => {
         if (message.member.voiceState == null) return message.channel.createMessage("You are not in a voice channel.");
         let voiceChannel = message.channel.guild.channels.get(message.member.voiceState.channelID);
         voiceChannel.join()
-        .then(() => message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`))
+        .then(voiceConnection => {
+            dankGuild.setupVoiceConnection(voiceConnection);
+            message.channel.createMessage(`Successfully joined **${voiceChannel.name}**`)
+        })
         .catch(() => message.channel.createMessage("Failed to join voice channel"));
     }
     if (cmd === "help") {
@@ -139,39 +78,40 @@ client.on("messageCreate", message => {
     if (cmd === "record") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-        record(client.voiceConnections.get(message.channel.guild.id));
+
+        dankGuild.record();
         message.channel.createMessage("Recording...");
     }
     if (cmd === "stop") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-        saveRecording(recordingData.find(d => client.channelGuildMap[d.channelID] === message.channel.guild.id))
+
+        dankGuild.saveRecording()
         .then(() => message.channel.createMessage("Ended recording"))
         .catch(() => message.channel.createMessage("Error occurred"));
     }
     if (cmd === "read") {
         let voiceState = getMe(message.channel.guild).voiceState;
         if (voiceState == null) return message.channel.createMessage("I am not in a voice channel.");
-        playDict.push(message.channel.id);
+        if (dankGuild.ttsChannels.includes(message.channel.id)) {
+            dankGuild.ttsChannels.splice(dankGuild.ttsChannels.indexOf(message.channel.id));
+            message.channel.createMessage("This channel is no longer being read.");
+            return;
+        }
+
+        dankGuild.ttsChannels.push(message.channel.id);
         message.channel.createMessage("Reading from this channel.");
     }
     if (cmd === "rate") {
-        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 91,018 messages.");
+        message.channel.createMessage("**sithsiri#3253** has sent the most messages on the server. Last check resulted in 100,618 messages.");
     }
     if (cmd === "ttsvolume") {
-        let number = parseInt(args[1]);
-        if (isNaN(number) && number >= 1 && number <= 9) return message.channel.createMessage("Please provide a valid number");
-        if (number === ttsVolume) return message.channel.createMessage("The volume you have selected is the same as the current volume.");
-        ttsVolume = number;
-        message.channel.createMessage("Successfully set tts volume to " + ttsVolume);
-    }
-    if (cmd === "fix") {
-        if (lastFix == null || Date.now() - lastFix > 1000 * 60 * 60 * 30) {
-            message.channel.createMessage("Time to die");
-            client.disconnect({reconnect: "auto"});
-            playDict = [];
-            lastFix = Date.now();
-        }
+        if (args[1] == null) return message.channel.createMessage("You must supply a number.");
+        let newVolume = parseInt(args[1]);
+        if (isNaN(newVolume) && newVolume >= 1 && newVolume <= 9) return message.channel.createMessage("Please provide a valid number");
+
+        dankGuild.ttsVolume = newVolume;
+        message.channel.createMessage("Successfully set tts volume to " + newVolume);
     }
     if (cmd === "log") {
         console.log(message.author.username);
@@ -180,31 +120,15 @@ client.on("messageCreate", message => {
     }
 });
 
-client.on("voiceChannelLeave", (member, oldChannel) => {
-    if (member.id === client.user.id && oldChannel != null) playDict = playDict.filter(channel => channel.id !== oldChannel.id); 
-});
+/*client.on("voiceChannelLeave", (member, oldChannel) => {
+    if (member.id === client.user.id && oldChannel != null) {
+        let dankGuild = dankGuilds.get(member.guild.id);
+        if (dankGuild == null) return;
+        dankGuild.resetVoice();
+    }
+});*/
 
 // STARBOARD
-
-/*client.on("channelPinUpdate", async (channel, timestamp, oldTimestamp) => {
-    console.log(timestamp + " | " + oldTimestamp)
-    if (oldTimestamp == null || channel.guild.id !== danktronics || channel.id === starboard) return;
-    
-    let pins = await channel.getPins();
-    if (pins == null || pins.length === 0) return;
-    let latestMessage = pins[0];
-
-    let embed = new EmbedBuilder()
-    .setAuthor(`${latestMessage.author.username}#${latestMessage.author.discriminator}`, null, latestMessage.author.avatarURL)
-    .setDescription(latestMessage.content.length > 0 ? latestMessage.content : "Unknown")
-    .addField("Quick Link", `[Click Here](${linkMessage(latestMessage)})`)
-    .setFooter(latestMessage.id)
-    .setTimestamp(new Date());
-
-    if (latestMessage.attachments.length > 0) embed.setImage(latestMessage.attachments[0].url);
-
-    client.guilds.get(danktronics).channels.get(starboard).createMessage({content: `<#${channel.id}>`, embed: embed.render()});
-});*/
 
 client.on("messageReactionAdd", async (message, emoji, userID) => {
     if (emoji.name !== starEmoji) return;
@@ -235,7 +159,13 @@ client.on("messageReactionAdd", async (message, emoji, userID) => {
         if (starredMessage.embeds[0].description != null) embed.setDescription(`> ${starredMessage.embeds[0].description}`);
     }
 
-    guild.channels.get(starboard).createMessage({content: `<#${channel.id}>`, embed: embed.render()});
+    let starboardChannel = guild.channels.find(channel => channel.name === starboardChannelName || channel.name === "cool-messages");
+    if (starboardChannel == null) {
+        message.channel.createMessage("This server does not have a starboard channel");
+        return;
+    }
+
+    guild.channels.get(starboardChannel.id).createMessage({content: channel.mention, embed: embed.render()});
 });
 
 client.on("error", console.error);

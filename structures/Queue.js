@@ -1,7 +1,6 @@
 class Queue {
-    constructor(client, executor) {
+    constructor(executor) {
         this.internalQueue = [];
-        this.client = client;
         this.executor = executor;
         this.queueCleaner = setInterval(this.process.bind(this), 30000);
     }
