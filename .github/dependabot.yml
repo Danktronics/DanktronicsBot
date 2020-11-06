@@ -6,6 +6,6 @@ updates:
     interval: daily
     time: '11:00'
   open-pull-requests-limit: 10
-  target-branch: dev
+  target-branch: old-js
   reviewers:
   - Sei4or
