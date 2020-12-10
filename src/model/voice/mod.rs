@@ -1,5 +1,6 @@
 use std::io::{Read, ErrorKind, Result};
 use std::process::{Child, Command, Stdio};
+use serenity::async_trait;
 use serenity::voice::{AudioReceiver, AudioSource, AudioType};
 
 pub struct Recorder;
@@ -10,8 +11,9 @@ impl Recorder {
     }
 }
 
+#[async_trait]
 impl AudioReceiver for Recorder {
-    fn voice_packet(&mut self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
+    async fn voice_packet(&self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
         println!("Received a voice packet");
     }
 }
@@ -22,16 +24,17 @@ pub struct TTSSource {
     child: Child,
 }
 
+#[async_trait]
 impl AudioSource for TTSSource {
-    fn is_stereo(&mut self) -> bool {
+    async fn is_stereo(&mut self) -> bool {
         true
     }
 
-    fn get_type(&self) -> AudioType {
+    async fn get_type(&self) -> AudioType {
         AudioType::Pcm
     }
 
-    fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
+    async fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
         for (i, val) in buffer.iter_mut().enumerate() {
             let mut raw_data = [0, 0];
             match self.child.stdout.as_mut().unwrap().read(&mut raw_data) {
@@ -55,11 +58,11 @@ impl AudioSource for TTSSource {
         Some(buffer.len())
     }
 
-    fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
+    async fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
         todo!()
     }
 
-    fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
+    async fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
         todo!()
     }
 }
