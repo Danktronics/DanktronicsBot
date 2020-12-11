@@ -48,27 +48,33 @@ impl GuildSettings {
                 match receiver.recv().await {
                     Some(message) => match message {
                         TTSMessage::NewMessage(tts_message) => {
-                            let mut manager = voice_manager.lock().await;
-
-                            if let Some(handler) = manager.get_mut(guild_id) {
-                                let possible_source = create_tts_source(&format!("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q={}", utf8_percent_encode(&tts_message, NON_ALPHANUMERIC)));
-                                if possible_source.is_ok() {
-                                    let locked_audio = handler.play_returning(Box::new(possible_source.unwrap()));
-                                    {
-                                        let mut audio = locked_audio.lock().await;
-                                        let volume = volume_lock.lock().await;
-                                        if *volume != 1 {
-                                            audio.volume((*volume).into());
-                                        }
+                            let locked_audio;
+                            
+                            {
+                                let mut manager = voice_manager.lock().await;
+                                if let Some(handler) = manager.get_mut(guild_id) {
+                                    let possible_source = create_tts_source(&format!("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q={}", utf8_percent_encode(&tts_message, NON_ALPHANUMERIC)));
+                                    if possible_source.is_ok() {
+                                        locked_audio = handler.play_returning(Box::new(possible_source.unwrap()));
+                                    } else {
+                                        println!("Error playing TTS: {:?}", possible_source.err());
+                                        continue;
                                     }
-
-                                    while !locked_audio.lock().await.finished {
-                                        delay_for(Duration::from_micros(500000)).await;
-                                    }
-                                    println!("{:?}", tts_message);
                                 } else {
-                                    println!("Error playing TTS: {:?}", possible_source.err());
+                                    continue;
                                 }
+                            }
+
+                            {
+                                let mut audio = locked_audio.lock().await;
+                                let volume = volume_lock.lock().await;
+                                if *volume != 1 {
+                                    audio.volume((*volume).into());
+                                }
+                            }
+
+                            while !locked_audio.lock().await.finished {
+                                delay_for(Duration::from_micros(500000)).await;
                             }
                         },
                         TTSMessage::EndTTS => break
