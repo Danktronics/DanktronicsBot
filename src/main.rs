@@ -1,11 +1,10 @@
 use std::{
-    env, sync::Arc, collections::HashMap, thread,
+    env, sync::Arc, collections::HashMap
 };
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
     model::{channel::Message, gateway::Ready, id::GuildId, voice::VoiceState},
     prelude::*,
-    voice,
     async_trait
 };
 
@@ -140,11 +139,13 @@ impl EventHandler for MainHandler {
                 }
             },
             "read" => {
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                let mut manager = manager_lock.lock().await;
-                if manager.get(message.guild_id.unwrap()).is_none() {
-                    message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
-                    return;
+                {
+                    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                    let manager = manager_lock.lock().await;
+                    if manager.get(message.guild_id.unwrap()).is_none() {
+                        message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
+                        return;
+                    }
                 }
 
                 let mut data = ctx.data.write().await;
@@ -170,17 +171,19 @@ impl EventHandler for MainHandler {
 
                 let new_volume = match arguments[0].parse::<u16>() {
                     Ok(vol) => vol,
-                    Err(error) => {
+                    Err(_) => {
                         message.channel_id.say(&ctx.http, "You must provide a valid number").await;
                         return;
                     }
                 };
 
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                let mut manager = manager_lock.lock().await;
-                if manager.get(message.guild_id.unwrap()).is_none() {
-                    message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
-                    return;
+                {
+                    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                    let manager = manager_lock.lock().await;
+                    if manager.get(message.guild_id.unwrap()).is_none() {
+                        message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
+                        return;
+                    }
                 }
 
                 let mut data = ctx.data.write().await;
