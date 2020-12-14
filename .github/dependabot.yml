@@ -1,11 +1,11 @@
 version: 2
 updates:
-- package-ecosystem: npm
+- package-ecosystem: cargo
   directory: "/"
   schedule:
     interval: daily
     time: '11:00'
   open-pull-requests-limit: 10
-  target-branch: old-js
+  target-branch: dev
   reviewers:
   - Sei4or
