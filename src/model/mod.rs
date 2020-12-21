@@ -1,2 +1,2 @@
 pub mod voice;
-pub mod settings;
+pub mod guild;

@@ -9,11 +9,12 @@ use serenity::{
 };
 
 use model::{
-    settings::GuildSettings,
+    guild::DankGuild,
     voice::{Recorder, create_tts_source}
 };
 
 mod model;
+mod helpers;
 
 struct VoiceManager;
 
@@ -21,10 +22,10 @@ impl TypeMapKey for VoiceManager {
     type Value = Arc<Mutex<ClientVoiceManager>>;
 }
 
-struct GuildSettingsMap;
+struct DankGuildMap;
 
-impl TypeMapKey for GuildSettingsMap {
-    type Value = HashMap<u64, GuildSettings>;
+impl TypeMapKey for DankGuildMap {
+    type Value = HashMap<u64, DankGuild>;
 }
 
 struct MainHandler;
@@ -40,10 +41,10 @@ impl EventHandler for MainHandler {
     async fn message(&self, ctx: Context, message: Message) {
         {
             let data = ctx.data.read().await;
-            let guild_settings_map = data.get::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+            let guild_settings_map = data.get::<DankGuildMap>().expect("DankGuildMap not stored in client");
             let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().0);
             if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
-                guild_settings.unwrap().say_message(message.content_safe(&ctx.cache).await).await;
+                guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await;
             }
         }
 
@@ -93,9 +94,9 @@ impl EventHandler for MainHandler {
 
                 if manager.join(message.guild_id.unwrap(), channel_id).is_some() {
                     let mut data = ctx.data.write().await;
-                    let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+                    let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
                     if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                        guild_settings_map.insert(message.guild_id.unwrap().0, GuildSettings::new(message.guild_id.unwrap().into()));
+                        guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
                     }
 
                     let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
@@ -149,9 +150,9 @@ impl EventHandler for MainHandler {
                 }
 
                 let mut data = ctx.data.write().await;
-                let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+                let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
                 if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                    guild_settings_map.insert(message.guild_id.unwrap().0, GuildSettings::new(message.guild_id.unwrap().into()));
+                    guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
                 }
 
                 let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
@@ -187,9 +188,9 @@ impl EventHandler for MainHandler {
                 }
 
                 let mut data = ctx.data.write().await;
-                let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+                let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
                 if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                    guild_settings_map.insert(message.guild_id.unwrap().0, GuildSettings::new(message.guild_id.unwrap().into()));
+                    guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
                 }
 
                 let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
@@ -206,7 +207,7 @@ impl EventHandler for MainHandler {
         }
 
         let mut data = ctx.data.write().await;
-        let guild_settings_map = data.get_mut::<GuildSettingsMap>().expect("GuildSettingsMap not stored in client");
+        let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
         let guild_settings = guild_settings_map.get_mut(&guild_id.unwrap().0);
         if guild_settings.is_some() {
             guild_settings.unwrap().end_tts();
@@ -226,7 +227,7 @@ async fn main() {
 
     {
         let mut data = client.data.write().await;
-        data.insert::<GuildSettingsMap>(HashMap::default());
+        data.insert::<DankGuildMap>(HashMap::default());
         data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
     }
 
