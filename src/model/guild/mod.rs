@@ -15,16 +15,16 @@ enum TTSMessage {
     EndTTS,
 }
 
-pub struct GuildSettings {
+pub struct DankGuild {
     pub id: u64,
     pub volume: Arc<Mutex<u16>>,
     pub tts_channels: HashSet<u64>,
     tts_sender: Option<Mutex<UnboundedSender<TTSMessage>>>,
 }
 
-impl GuildSettings {
-    pub fn new(id: u64) -> GuildSettings {
-        GuildSettings {
+impl DankGuild {
+    pub fn new(id: u64) -> DankGuild {
+        DankGuild {
             id,
             volume: Arc::new(Mutex::new(1)),
             tts_channels: HashSet::new(),
