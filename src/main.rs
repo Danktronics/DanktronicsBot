@@ -30,7 +30,7 @@ impl TypeMapKey for DankGuildMap {
 
 struct MainHandler;
 
-static PREFIX: &str = "d!";
+static PREFIX: &str = "d.";
 
 #[async_trait]
 impl EventHandler for MainHandler {
