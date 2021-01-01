@@ -3,7 +3,7 @@ use std::{
 };
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
-    model::{channel::Message, gateway::Ready, id::GuildId, voice::VoiceState},
+    model::{channel::{Message, Reaction, ReactionType}, gateway::Ready, id::GuildId, voice::VoiceState},
     prelude::*,
     async_trait
 };
@@ -201,6 +201,62 @@ impl EventHandler for MainHandler {
         }
     }
 
+    async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
+        if let ReactionType::Unicode(ref unicode) = reaction.emoji {
+            if (unicode != "⭐") {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        if reaction.guild_id.is_none() {
+            return;
+        }
+
+        let stared_message = match ctx.cache.message(reaction.channel_id, reaction.message_id).await {
+            Some(message) => message,
+            None => match reaction.message(&ctx.http).await {
+                Ok(message) => message,
+                Err(_e) => return
+            }
+        };
+
+        if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()).await {
+            if let Some(channel) = channels.values().find(|&c| c.name == "starboard" || c.name == "cool-messages") {
+                channel.send_message(ctx, |mut m| {
+                    m.embed(|mut e| {
+                        e.author(|mut a| {
+                            a.name(format!("{}#{:04}", stared_message.author.name, stared_message.author.discriminator));
+                            a.icon_url(stared_message.author.face());
+                            a
+                        });
+                        if stared_message.content.len() > 0 {
+                            e.description(&stared_message.content);
+                        }
+                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
+                        e.footer(|mut f| {
+                            f.text(stared_message.id.to_string());
+                            f
+                        });
+                        e.timestamp(&stared_message.timestamp);
+                        if stared_message.attachments.len() > 0 {
+                            e.image(&stared_message.attachments[0].url);
+                        }
+                        if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
+                            e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
+                        }
+                        e.color(16765448);
+
+                        e
+                    });
+
+                    m
+                }).await;
+            }
+        }
+    }
+
     async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
         if guild_id.is_none() || new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user_field(|user| user.id).await {
             return;
@@ -230,6 +286,8 @@ async fn main() {
         data.insert::<DankGuildMap>(HashMap::default());
         data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
     }
+
+    client.cache_and_http.cache.set_max_messages(7).await;
 
     if let Err(error) = client.start().await {
         println!("Ran into a fatal issue: {:?}", error);
