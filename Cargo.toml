@@ -5,7 +5,7 @@ authors = ["Sei4or <sei4or@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-serenity = { version = "0.9.2", default-features = false, features = ["client", "voice", "rustls_backend", "cache", "model"] }
+serenity = { version = "0.10.2", default-features = false, features = ["client", "voice", "rustls_backend", "cache", "model"] }
 tokio = { version = "0.2", features = ["macros", "sync", "time"] }
 anyhow = "1.0"
 percent-encoding = "2.1.0"
