@@ -3,7 +3,7 @@ use std::{
 };
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
-    model::{channel::{Message, Reaction, ReactionType}, gateway::Ready, id::GuildId, voice::VoiceState},
+    model::{channel::{Message, Reaction, ReactionType}, gateway::{Ready, Activity}, id::GuildId, voice::VoiceState},
     prelude::*,
     async_trait
 };
@@ -34,8 +34,9 @@ static PREFIX: &str = "d.";
 
 #[async_trait]
 impl EventHandler for MainHandler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        println!("Connected as {}#{}", ready.user.name, ready.user.discriminator);
+    async fn ready(&self, ctx: Context, ready: Ready) {
+        println!("Connected as {}#{:04}", ready.user.name, ready.user.discriminator);
+        ctx.set_activity(Activity::playing(&format!("the people here | {}help", PREFIX))).await;
     }
 
     async fn message(&self, ctx: Context, message: Message) {
@@ -44,16 +45,16 @@ impl EventHandler for MainHandler {
             let guild_settings_map = data.get::<DankGuildMap>().expect("DankGuildMap not stored in client");
             let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().0);
             if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
-                guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await;
+                check!(guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await);
             }
         }
 
         if message.content.to_lowercase() == "cough" {
             let role_result = ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().member(&ctx, message.author.id).await.unwrap().add_role(&ctx.http, 687873868106432661).await;
             if role_result.is_ok() {
-                message.channel_id.say(&ctx.http, "This is the CDC. You are being quarantined as you are suspected to have a deadly virus pandemic. UwU").await;
+                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are being quarantined as you are suspected to have a deadly virus pandemic. UwU").await);
             } else {
-                message.channel_id.say(&ctx.http, "This is the CDC. You are on watch for coughing. We were unable to quarantine you").await;
+                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are on watch for coughing. We were unable to quarantine you").await);
             }
             return;
         }
@@ -72,13 +73,13 @@ impl EventHandler for MainHandler {
                 let channel_id = match ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().voice_states.get(&message.author.id) {
                     Some(voice_state) => voice_state.channel_id.unwrap(),
                     None => {
-                        message.channel_id.say(&ctx.http, "You must be in a voice channel").await;
+                        check!(message.channel_id.say(&ctx.http, "You must be in a voice channel").await);
                         return;
                     }
                 };
 
                 if !channel_id.to_channel_cached(&ctx.cache).await.unwrap().guild().unwrap().permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id).await).await.unwrap().connect() {
-                    message.channel_id.say(&ctx.http, "I do not have permissions to join your channel").await;
+                    check!(message.channel_id.say(&ctx.http, "I do not have permissions to join your channel").await);
                     return;
                 }
 
@@ -87,7 +88,7 @@ impl EventHandler for MainHandler {
                 {
                     let handler = manager.get(message.guild_id.unwrap());
                     if handler.is_some() && handler.unwrap().channel_id.is_some() && handler.unwrap().channel_id.unwrap() == channel_id {
-                        message.channel_id.say(&ctx.http, "I am already in this channel!").await;
+                        check!(message.channel_id.say(&ctx.http, "I am already in this channel!").await);
                         return;
                     }
                 }
@@ -101,13 +102,13 @@ impl EventHandler for MainHandler {
 
                     let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                     guild_settings.initialize_tts(manager_lock.clone());
-                    message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel_id.name(&ctx.cache).await.unwrap())).await;
+                    check!(message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel_id.name(&ctx.cache).await.unwrap())).await);
                 } else {
-                    message.channel_id.say(&ctx.http, "Failed to join your voice channel").await;
+                    check!(message.channel_id.say(&ctx.http, "Failed to join your voice channel").await);
                 }
             },
             "help" => {
-                message.channel_id.say(&ctx.http, "You have been helped!").await;
+                check!(message.channel_id.say(&ctx.http, "You have been helped!").await);
             },
             "record" => {
                 // let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
@@ -134,9 +135,9 @@ impl EventHandler for MainHandler {
                 let mut manager = manager_lock.lock().await;
                 if manager.get(message.guild_id.unwrap()).is_some() {
                     manager.remove(message.guild_id.unwrap());
-                    message.channel_id.say(&ctx.http, "Left").await;
+                    check!(message.channel_id.say(&ctx.http, "Left").await);
                 } else {
-                    message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
+                    check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                 }
             },
             "read" => {
@@ -144,7 +145,7 @@ impl EventHandler for MainHandler {
                     let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
                     let manager = manager_lock.lock().await;
                     if manager.get(message.guild_id.unwrap()).is_none() {
-                        message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
+                        check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                         return;
                     }
                 }
@@ -158,22 +159,22 @@ impl EventHandler for MainHandler {
                 let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                 if guild_settings.tts_channels.contains(&message.channel_id.0) {
                     guild_settings.tts_channels.remove(&message.channel_id.0);
-                    message.channel_id.say(&ctx.http, "Removed this channel from TTS").await;
+                    check!(message.channel_id.say(&ctx.http, "Removed this channel from TTS").await);
                 } else {
                     guild_settings.tts_channels.insert(message.channel_id.0);
-                    message.channel_id.say(&ctx.http, "Added this channel to TTS").await;
+                    check!(message.channel_id.say(&ctx.http, "Added this channel to TTS").await);
                 }
             },
             "volume" => {
                 if arguments.len() == 0 {
-                    message.channel_id.say(&ctx.http, "You must provide the new volume level").await;
+                    check!(message.channel_id.say(&ctx.http, "You must provide the new volume level").await);
                     return;
                 }
 
                 let new_volume = match arguments[0].parse::<u16>() {
                     Ok(vol) => vol,
                     Err(_) => {
-                        message.channel_id.say(&ctx.http, "You must provide a valid number").await;
+                        check!(message.channel_id.say(&ctx.http, "You must provide a valid number").await);
                         return;
                     }
                 };
@@ -182,7 +183,7 @@ impl EventHandler for MainHandler {
                     let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
                     let manager = manager_lock.lock().await;
                     if manager.get(message.guild_id.unwrap()).is_none() {
-                        message.channel_id.say(&ctx.http, "I must be in a voice channel first").await;
+                        check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                         return;
                     }
                 }
@@ -195,7 +196,7 @@ impl EventHandler for MainHandler {
 
                 let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                 *guild_settings.volume.lock().await = new_volume;
-                message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await;
+                check!(message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await);
             },
             _ => ()
         }
@@ -224,9 +225,9 @@ impl EventHandler for MainHandler {
 
         if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()).await {
             if let Some(channel) = channels.values().find(|&c| c.name == "starboard" || c.name == "cool-messages") {
-                channel.send_message(ctx, |mut m| {
-                    m.embed(|mut e| {
-                        e.author(|mut a| {
+                check!(channel.send_message(ctx, |m| {
+                    m.embed(|e| {
+                        e.author(|a| {
                             a.name(format!("{}#{:04}", stared_message.author.name, stared_message.author.discriminator));
                             a.icon_url(stared_message.author.face());
                             a
@@ -235,7 +236,7 @@ impl EventHandler for MainHandler {
                             e.description(&stared_message.content);
                         }
                         e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
-                        e.footer(|mut f| {
+                        e.footer(|f| {
                             f.text(stared_message.id.to_string());
                             f
                         });
@@ -252,12 +253,12 @@ impl EventHandler for MainHandler {
                     });
 
                     m
-                }).await;
+                }).await);
             }
         }
     }
 
-    async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, old_state: Option<VoiceState>, new_state: VoiceState) {
+    async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, _old_state: Option<VoiceState>, new_state: VoiceState) {
         if guild_id.is_none() || new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user_field(|user| user.id).await {
             return;
         }
@@ -291,5 +292,14 @@ async fn main() {
 
     if let Err(error) = client.start().await {
         println!("Ran into a fatal issue: {:?}", error);
+    }
+}
+
+#[macro_export]
+macro_rules! check {
+    ($result:expr) => {
+        if let Err(error) = $result {
+            eprintln!("{:?}", error);
+        }
     }
 }
