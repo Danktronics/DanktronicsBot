@@ -235,7 +235,6 @@ impl EventHandler for MainHandler {
                         if stared_message.content.len() > 0 {
                             e.description(&stared_message.content);
                         }
-                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
                         e.footer(|f| {
                             f.text(stared_message.id.to_string());
                             f
@@ -247,6 +246,7 @@ impl EventHandler for MainHandler {
                         if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
                             e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
                         }
+                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
                         e.color(16765448);
 
                         e
