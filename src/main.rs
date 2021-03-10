@@ -246,6 +246,13 @@ impl EventHandler for MainHandler {
                         if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
                             e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
                         }
+                        match reaction.user_id {
+                            Some(user_id) => match user_id.to_user() {
+                                Ok(user) => e.field("Submitter", format!("{}#{:04}", user.name, user.discriminator)),
+                                Err(_e) => ()
+                            },
+                            None => ()
+                        ];
                         e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
                         e.color(16765448);
 
