@@ -225,6 +225,11 @@ impl EventHandler for MainHandler {
 
         if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()).await {
             if let Some(channel) = channels.values().find(|&c| c.name == "starboard" || c.name == "cool-messages") {
+                let submitter = match reaction.user(&ctx).await {
+                    Ok(user) => Some(format!("{} ({})", user.tag(), user.mention())),
+                    Err(_) => None
+                };
+
                 check!(channel.send_message(ctx, |m| {
                     m.embed(|e| {
                         e.author(|a| {
@@ -235,7 +240,6 @@ impl EventHandler for MainHandler {
                         if stared_message.content.len() > 0 {
                             e.description(&stared_message.content);
                         }
-                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), false);
                         e.footer(|f| {
                             f.text(stared_message.id.to_string());
                             f
@@ -246,6 +250,10 @@ impl EventHandler for MainHandler {
                         }
                         if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
                             e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
+                        }
+                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), true);
+                        if let Some(submitter) = submitter {
+                            e.field("Submitter", submitter, true);
                         }
                         e.color(16765448);
 
