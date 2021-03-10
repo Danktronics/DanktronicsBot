@@ -251,7 +251,7 @@ impl EventHandler for MainHandler {
                         if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
                             e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
                         }
-                        e.field("Quick Link", format!("[Click Here]({})", stared_message.link()), true);
+                        e.field("Quick Link", format!("[Click Here]({})", format!("https://discord.com/channels/{}/{}/{}", reaction.guild_id.unwrap().0, stared_message.channel_id.0, stared_message.id.0)), true);
                         if let Some(submitter) = submitter {
                             e.field("Submitter", submitter, true);
                         }
