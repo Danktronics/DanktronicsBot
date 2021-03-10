@@ -226,7 +226,7 @@ impl EventHandler for MainHandler {
         if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()).await {
             if let Some(channel) = channels.values().find(|&c| c.name == "starboard" || c.name == "cool-messages") {
                 let submitter = match reaction.user(&ctx).await {
-                    Ok(user) => Some(format!("{}#{:04} (<@{}>)", user.name, user.discriminator, user.id)),
+                    Ok(user) => Some(format!("{} ({})", user.tag(), user.mention())),
                     Err(_) => None
                 };
 
