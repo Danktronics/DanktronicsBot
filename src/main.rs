@@ -10,7 +10,7 @@ use serenity::{
 
 use model::{
     guild::DankGuild,
-    voice::{Recorder, create_tts_source}
+    voice::create_tts_source
 };
 
 mod model;
@@ -40,6 +40,10 @@ impl EventHandler for MainHandler {
     }
 
     async fn message(&self, ctx: Context, message: Message) {
+        if message.is_private() {
+            return;
+        }
+
         {
             let data = ctx.data.read().await;
             let guild_settings_map = data.get::<DankGuildMap>().expect("DankGuildMap not stored in client");
@@ -64,7 +68,7 @@ impl EventHandler for MainHandler {
         }
 
         let raw_command_message: String = message.content.chars().skip(PREFIX.len()).collect();
-        let mut arguments: Vec<&str> = raw_command_message.split(" ").collect();
+        let mut arguments: Vec<&str> = raw_command_message.split(' ').collect();
         let command: &str = arguments[0];
         arguments.remove(0);
 
@@ -78,7 +82,8 @@ impl EventHandler for MainHandler {
                     }
                 };
 
-                if !channel_id.to_channel_cached(&ctx.cache).await.unwrap().guild().unwrap().permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id).await).await.unwrap().connect() {
+                let channel = channel_id.to_channel_cached(&ctx.cache).await.unwrap().guild().unwrap();
+                if !channel.permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id).await).await.unwrap().connect() {
                     check!(message.channel_id.say(&ctx.http, "I do not have permissions to join your channel").await);
                     return;
                 }
@@ -96,11 +101,8 @@ impl EventHandler for MainHandler {
                 if manager.join(message.guild_id.unwrap(), channel_id).is_some() {
                     let mut data = ctx.data.write().await;
                     let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                    if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                        guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
-                    }
+                    let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                    let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                     guild_settings.initialize_tts(manager_lock.clone());
                     check!(message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel_id.name(&ctx.cache).await.unwrap())).await);
                 } else {
@@ -152,11 +154,8 @@ impl EventHandler for MainHandler {
 
                 let mut data = ctx.data.write().await;
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                    guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
-                }
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                 if guild_settings.tts_channels.contains(&message.channel_id.0) {
                     guild_settings.tts_channels.remove(&message.channel_id.0);
                     check!(message.channel_id.say(&ctx.http, "Removed this channel from TTS").await);
@@ -166,7 +165,7 @@ impl EventHandler for MainHandler {
                 }
             },
             "volume" => {
-                if arguments.len() == 0 {
+                if arguments.is_empty() {
                     check!(message.channel_id.say(&ctx.http, "You must provide the new volume level").await);
                     return;
                 }
@@ -190,11 +189,8 @@ impl EventHandler for MainHandler {
 
                 let mut data = ctx.data.write().await;
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                if !guild_settings_map.contains_key(&message.guild_id.unwrap().0) {
-                    guild_settings_map.insert(message.guild_id.unwrap().0, DankGuild::new(message.guild_id.unwrap().into()));
-                }
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                let guild_settings = guild_settings_map.get_mut(&message.guild_id.unwrap().0).unwrap();
                 *guild_settings.volume.lock().await = new_volume;
                 check!(message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await);
             },
@@ -237,7 +233,7 @@ impl EventHandler for MainHandler {
                             a.icon_url(stared_message.author.face());
                             a
                         });
-                        if stared_message.content.len() > 0 {
+                        if !stared_message.content.is_empty() {
                             e.description(&stared_message.content);
                         }
                         e.footer(|f| {
@@ -245,11 +241,13 @@ impl EventHandler for MainHandler {
                             f
                         });
                         e.timestamp(&stared_message.timestamp);
-                        if stared_message.attachments.len() > 0 {
+                        if !stared_message.attachments.is_empty() {
                             e.image(&stared_message.attachments[0].url);
                         }
-                        if stared_message.embeds.len() > 0 && stared_message.embeds[0].description.is_some() {
-                            e.field("Embed", format!("> {}", stared_message.embeds[0].description.as_ref().unwrap()), false);
+                        if !stared_message.embeds.is_empty() {
+                            if let Some(ref description) = stared_message.embeds[0].description {
+                                e.field("Embed", format!("> {}", description), false);
+                            }
                         }
                         e.field("Quick Link", format!("[Click Here]({})", format!("https://discord.com/channels/{}/{}/{}", reaction.guild_id.unwrap().0, stared_message.channel_id.0, stared_message.id.0)), true);
                         if let Some(submitter) = submitter {
