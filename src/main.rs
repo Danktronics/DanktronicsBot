@@ -40,7 +40,7 @@ impl EventHandler for MainHandler {
     }
 
     async fn message(&self, ctx: Context, message: Message) {
-        if message.author.bot || message.is_private() {
+        if message.is_private() {
             return;
         }
 
