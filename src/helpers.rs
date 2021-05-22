@@ -52,5 +52,8 @@ pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
         clean_content = clean_content.replace(&format!("<#{}>", channel.id), &channel.name);
     }
 
+    clean_content = clean_content.replace("owo", "ohwo");
+    clean_content = clean_content.replace("uwu", "oowoo");
+
     clean_content
 }
