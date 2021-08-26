@@ -3,7 +3,10 @@ use std::{
 };
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
-    model::{channel::Message, gateway::Ready},
+    model::{
+        channel::{Message, Reaction, ReactionType}, 
+        gateway::Ready
+    },
     prelude::*,
     voice
 };
@@ -11,7 +14,7 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 use model::{
     settings::GuildSettings,
-    voice::Recorder
+    voice::{Recorder, EmptyAudioSource}
 };
 
 mod model;
@@ -108,6 +111,7 @@ impl EventHandler for MainHandler {
                 let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
                 let mut manager = manager_lock.lock();
                 if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.play(Box::new(EmptyAudioSource(5 * 1920)));
                     handler.listen(Some(Box::new(Recorder::new())));
                     message.channel_id.say(&ctx.http, "Recording...");
                 } else {
@@ -190,6 +194,18 @@ impl EventHandler for MainHandler {
             },
             _ => ()
         }
+    }
+
+    fn reaction_add(&self, ctx: Context, reaction: Reaction) {
+        /*match reaction.emoji {
+            ReactionType::Custom{..} => return,
+            ReactionType::Unicode(unicode) => {
+                if unicode == "⭐" {
+                   let possible_message = reaction.message(&ctx.http);
+                }
+            },
+            _ => return
+        }*/
     }
 }
 
