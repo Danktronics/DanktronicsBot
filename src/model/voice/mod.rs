@@ -2,23 +2,42 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::io::BufWriter;
 use std::fs::File;
+use std::sync::Mutex;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use serenity::voice::{AudioReceiver, AudioSource, AudioType};
 use byteorder::{WriteBytesExt, LittleEndian};
 use hound::{WavWriter, WavSpec, SampleFormat::Int};
+use std::io::{Read, ErrorKind, Result};
+use std::process::{Child, Command, Stdio};
+use serenity::async_trait;
 
 pub struct Recorder {
-    writer: WavWriter<BufWriter<File>>
+    writer_sender: UnboundedSender<Vec<i16>>
 }
 
 impl Recorder {
     pub fn new() -> Self {
-        Self {
-            writer: WavWriter::create("test.wav", hound::WavSpec {
+        let (sender, mut receiver) = unbounded_channel();
+
+        tokio::spawn(async move {
+            let mut writer = WavWriter::create("test.wav", hound::WavSpec {
                 channels: 2,
                 sample_rate: 44100,
                 bits_per_sample: 16,
                 sample_format: hound::SampleFormat::Int
-            }).unwrap()
+            }).unwrap();
+            
+            while let Some(voice_data) = receiver.recv().await {
+                for frame in voice_data {
+                    writer.write_sample(frame); // TODO: Handle Result
+                }
+            }
+
+            writer.finalize(); // TODO: Handle Result
+        });
+
+        Self {
+            writer_sender: sender
         }
     }
 
@@ -27,11 +46,10 @@ impl Recorder {
     }*/
 }
 
+#[async_trait]
 impl AudioReceiver for Recorder {
-    fn voice_packet(&mut self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
-        for frame in data {
-            self.writer.write_sample(*frame);
-        }
+    async fn voice_packet(&self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
+        self.writer_sender.send(data.to_vec());
         /*let mut file = OpenOptions::new().append(true).open("./test.mp3").unwrap();
         let mut result: Vec<u8> = Vec::new();
         for &n in data {
@@ -40,23 +58,24 @@ impl AudioReceiver for Recorder {
         file.write_all(&result);*/
     }
 
-    fn client_disconnect(&mut self, _user_id: u64) {
-        self.writer.flush();
+    async fn client_disconnect(&self, _user_id: u64) {
+        // self.writer.lock().unwrap().flush();
     }
 }
 
 pub struct EmptyAudioSource(pub usize);
 
+#[async_trait]
 impl AudioSource for EmptyAudioSource {
-    fn is_stereo(&mut self) -> bool {
+    async fn is_stereo(&mut self) -> bool {
         true
     }
 
-    fn get_type(&self) -> AudioType {
+    async fn get_type(&self) -> AudioType {
         AudioType::Pcm
     }
 
-    fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
+    async fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
         for el in buffer.iter_mut() {
             *el = 0;
         }
@@ -69,11 +88,85 @@ impl AudioSource for EmptyAudioSource {
         }
     }
 
-    fn read_opus_frame(&mut self) -> Option<Vec<u8>> {
+    async fn read_opus_frame(&mut self) -> Option<Vec<u8>> {
         None
     }
 
-    fn decode_and_add_opus_frame(&mut self, float_buffer: &mut [f32; 1920], volume: f32) -> Option<usize> {
+    async fn decode_and_add_opus_frame(&mut self, float_buffer: &mut [f32; 1920], volume: f32) -> Option<usize> {
         None
     }
+}
+
+// Audio Send
+
+pub struct TTSSource {
+    child: Child,
+}
+
+#[async_trait]
+impl AudioSource for TTSSource {
+    async fn is_stereo(&mut self) -> bool {
+        true
+    }
+
+    async fn get_type(&self) -> AudioType {
+        AudioType::Pcm
+    }
+
+    async fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
+        for (i, val) in buffer.iter_mut().enumerate() {
+            let mut raw_data = [0, 0];
+            match self.child.stdout.as_mut().unwrap().read(&mut raw_data) {
+                Ok(bytes_read) => {
+                    if bytes_read == 0 {
+                        return None;
+                    }
+
+                    *val = i16::from_le_bytes(raw_data);
+                },
+                Err(e) => {
+                    if e.kind() == ErrorKind::UnexpectedEof {
+                        return Some(i);
+                    }
+
+                    return None;
+                }
+            }
+        }
+
+        Some(buffer.len())
+    }
+
+    async fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
+        todo!()
+    }
+
+    async fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
+        todo!()
+    }
+}
+
+pub fn create_tts_source(url: &str) -> Result<TTSSource> {
+    let child = Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            url,
+            "-f",
+            "s16le",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            "-acodec",
+            "pcm_s16le",
+            "-",
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    
+    Ok(TTSSource {
+        child
+    })
 }
