@@ -1,20 +1,99 @@
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::io::BufWriter;
+use std::fs::File;
+use std::sync::Mutex;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use serenity::voice::{AudioReceiver, AudioSource, AudioType};
+use byteorder::{WriteBytesExt, LittleEndian};
+use hound::{WavWriter, WavSpec, SampleFormat::Int};
 use std::io::{Read, ErrorKind, Result};
 use std::process::{Child, Command, Stdio};
 use serenity::async_trait;
-use serenity::voice::{AudioReceiver, AudioSource, AudioType};
 
-pub struct Recorder;
+pub struct Recorder {
+    writer_sender: UnboundedSender<Vec<i16>>
+}
 
 impl Recorder {
     pub fn new() -> Self {
-        Self { }
+        let (sender, mut receiver) = unbounded_channel();
+
+        tokio::spawn(async move {
+            let mut writer = WavWriter::create("test.wav", hound::WavSpec {
+                channels: 2,
+                sample_rate: 44100,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int
+            }).unwrap();
+            
+            while let Some(voice_data) = receiver.recv().await {
+                for frame in voice_data {
+                    writer.write_sample(frame); // TODO: Handle Result
+                }
+            }
+
+            writer.finalize(); // TODO: Handle Result
+        });
+
+        Self {
+            writer_sender: sender
+        }
     }
+
+    /*pub fn finish(&mut self) {
+        self.writer.finalize();
+    }*/
 }
 
 #[async_trait]
 impl AudioReceiver for Recorder {
     async fn voice_packet(&self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
-        println!("Received a voice packet");
+        self.writer_sender.send(data.to_vec());
+        /*let mut file = OpenOptions::new().append(true).open("./test.mp3").unwrap();
+        let mut result: Vec<u8> = Vec::new();
+        for &n in data {
+            let _ = result.write_i16::<LittleEndian>(n);
+        }
+        file.write_all(&result);*/
+    }
+
+    async fn client_disconnect(&self, _user_id: u64) {
+        // self.writer.lock().unwrap().flush();
+    }
+}
+
+pub struct EmptyAudioSource(pub usize);
+
+#[async_trait]
+impl AudioSource for EmptyAudioSource {
+    async fn is_stereo(&mut self) -> bool {
+        true
+    }
+
+    async fn get_type(&self) -> AudioType {
+        AudioType::Pcm
+    }
+
+    async fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
+        for el in buffer.iter_mut() {
+            *el = 0;
+        }
+
+        if self.0 != 0 {
+            self.0 -= buffer.len().min(self.0);
+            Some(buffer.len())
+        } else {
+            None
+        }
+    }
+
+    async fn read_opus_frame(&mut self) -> Option<Vec<u8>> {
+        None
+    }
+
+    async fn decode_and_add_opus_frame(&mut self, float_buffer: &mut [f32; 1920], volume: f32) -> Option<usize> {
+        None
     }
 }
 

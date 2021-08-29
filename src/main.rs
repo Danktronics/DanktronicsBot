@@ -3,12 +3,18 @@ use std::{
 };
 use serenity::{
     client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
-    model::{channel::{Message, Reaction, ReactionType}, gateway::{Ready, Activity}, id::GuildId, voice::VoiceState},
+    model::{
+        channel::{Message, Reaction, ReactionType}, 
+        gateway::Ready,
+        voice::VoiceState,
+        prelude::*
+    },
     prelude::*,
     async_trait
 };
 
 use model::{
+    voice::{Recorder, EmptyAudioSource},
     guild::DankGuild,
     voice::create_tts_source
 };
@@ -31,6 +37,7 @@ impl TypeMapKey for DankGuildMap {
 struct MainHandler;
 
 static PREFIX: &str = "d.";
+static BLACKLISTED_PHRASES: [&str; 1] = ["L"];
 
 #[async_trait]
 impl EventHandler for MainHandler {
@@ -53,13 +60,8 @@ impl EventHandler for MainHandler {
             }
         }
 
-        if message.content.to_lowercase() == "cough" {
-            let role_result = ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().member(&ctx, message.author.id).await.unwrap().add_role(&ctx.http, 687873868106432661).await;
-            if role_result.is_ok() {
-                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are being quarantined as you are suspected to have a deadly virus pandemic. UwU").await);
-            } else {
-                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are on watch for coughing. We were unable to quarantine you").await);
-            }
+        if BLACKLISTED_PHRASES.contains(&message.content.as_str()) {
+            check!(message.delete(&ctx).await);
             return;
         }
 
@@ -113,14 +115,15 @@ impl EventHandler for MainHandler {
                 check!(message.channel_id.say(&ctx.http, "You have been helped!").await);
             },
             "record" => {
-                // let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                // let mut manager = manager_lock.lock();
-                // if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
-                //     handler.listen(Some(Box::new(Recorder::new())));
-                //     message.channel_id.say(&ctx.http, "Recording...");
-                // } else {
-                //     message.channel_id.say(&ctx.http, "I must be in a voice channel first");
-                // }
+                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock().await;
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.play(Box::new(EmptyAudioSource(5 * 1920)));
+                    handler.listen(Some(Arc::new(Recorder::new())));
+                    message.channel_id.say(&ctx.http, "Recording...");
+                } else {
+                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                }
             },
             "stop" => {
                 // let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
