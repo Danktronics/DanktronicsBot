@@ -59,16 +59,6 @@ impl EventHandler for MainHandler {
             }
         }
 
-        if message.content.to_lowercase() == "cough" {
-            let role_result = ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().member(&ctx, message.author.id).await.unwrap().add_role(&ctx.http, 687873868106432661).await;
-            if role_result.is_ok() {
-                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are being quarantined as you are suspected to have a deadly virus pandemic. UwU").await);
-            } else {
-                check!(message.channel_id.say(&ctx.http, "This is the CDC. You are on watch for coughing. We were unable to quarantine you").await);
-            }
-            return;
-        }
-
         if !message.content.starts_with(PREFIX) {
             return;
         }
