@@ -61,7 +61,7 @@ impl EventHandler for MainHandler {
         }
 
         if BLACKLISTED_PHRASES.contains(&message.content.as_str()) {
-            check!(message.delete(&ctx).await);
+            check!(message.react(&ctx, '🇱').await);
             return;
         }
 
