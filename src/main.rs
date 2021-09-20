@@ -114,6 +114,9 @@ impl EventHandler for MainHandler {
             "help" => {
                 check!(message.channel_id.say(&ctx.http, "You have been helped!").await);
             },
+            "feedback" => {
+                check!(message.channel_id.say(&ctx.http, "You have given feedback! into the void lmao").await);
+            },
             "record" => {
                 let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
                 let mut manager = manager_lock.lock().await;
