@@ -37,7 +37,6 @@ impl TypeMapKey for DankGuildMap {
 struct MainHandler;
 
 static PREFIX: &str = "d.";
-static BLACKLISTED_PHRASES: [&str; 1] = ["L"];
 
 #[async_trait]
 impl EventHandler for MainHandler {
@@ -58,11 +57,6 @@ impl EventHandler for MainHandler {
             if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
                 check!(guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await);
             }
-        }
-
-        if BLACKLISTED_PHRASES.contains(&message.content.as_str()) {
-            check!(message.react(&ctx, '🇱').await);
-            return;
         }
 
         if !message.content.starts_with(PREFIX) {
