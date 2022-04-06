@@ -10,6 +10,7 @@ use hound::{WavWriter, WavSpec, SampleFormat::Int};
 use std::io::{Read, ErrorKind, Result};
 use std::process::{Child, Command, Stdio};
 use serenity::async_trait;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Recorder {
     writer_sender: UnboundedSender<Vec<i16>>
@@ -20,9 +21,9 @@ impl Recorder {
         let (sender, mut receiver) = unbounded_channel();
 
         tokio::spawn(async move {
-            let mut writer = WavWriter::create("test.wav", hound::WavSpec {
+            let mut writer = WavWriter::create(format!("test{}.wav", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()), hound::WavSpec {
                 channels: 2,
-                sample_rate: 44100,
+                sample_rate: 48000,
                 bits_per_sample: 16,
                 sample_format: hound::SampleFormat::Int
             }).unwrap();
@@ -49,6 +50,7 @@ impl Recorder {
 #[async_trait]
 impl AudioReceiver for Recorder {
     async fn voice_packet(&self, ssrc: u32, sequence: u16, timestamp: u32, stereo: bool, data: &[i16], compressed_size: usize) {
+        // println!("{:?} {:?} {:?} {:?}", ssrc, sequence, stereo, timestamp);
         self.writer_sender.send(data.to_vec());
         /*let mut file = OpenOptions::new().append(true).open("./test.mp3").unwrap();
         let mut result: Vec<u8> = Vec::new();

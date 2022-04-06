@@ -37,7 +37,7 @@ impl TypeMapKey for DankGuildMap {
 struct MainHandler;
 
 static PREFIX: &str = "d.";
-static BLACKLISTED_PHRASES: [&str; 1] = ["L"];
+static BLACKLISTED_PHRASES: [&str; 2] = ["L", "l"];
 
 #[async_trait]
 impl EventHandler for MainHandler {
@@ -76,7 +76,7 @@ impl EventHandler for MainHandler {
 
         match command {
             "join" => {
-                let channel_id = match ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().voice_states.get(&message.author.id) {
+                let channel_id = match message.guild_field(&ctx.cache, |guild| guild.voice_states.clone()).await.unwrap().get(&message.author.id) {
                     Some(voice_state) => voice_state.channel_id.unwrap(),
                     None => {
                         check!(message.channel_id.say(&ctx.http, "You must be in a voice channel").await);
@@ -120,20 +120,21 @@ impl EventHandler for MainHandler {
                 if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
                     handler.play(Box::new(EmptyAudioSource(5 * 1920)));
                     handler.listen(Some(Arc::new(Recorder::new())));
-                    message.channel_id.say(&ctx.http, "Recording...");
+                    check!(message.channel_id.say(&ctx.http, "Recording...").await);
                 } else {
-                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                    check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                 }
             },
             "stop" => {
-                // let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                // let mut manager = manager_lock.lock();
-                // if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
-                //     handler.listen(None);
-                //     message.channel_id.say(&ctx.http, "Ended Recording");
-                // } else {
-                //     message.channel_id.say(&ctx.http, "I must be in a voice channel first");
-                // }
+                /*let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+                let mut manager = manager_lock.lock().await;
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.listen(None);
+                    handler.stop();
+                    check!(message.channel_id.say(&ctx.http, "Ended Recording").await);
+                } else {
+                    check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
+                }*/
             },
             "leave" => {
                 let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
@@ -203,7 +204,7 @@ impl EventHandler for MainHandler {
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         if let ReactionType::Unicode(ref unicode) = reaction.emoji {
-            if (unicode != "⭐") {
+            if unicode != "⭐" {
                 return;
             }
         } else {

@@ -11,3 +11,5 @@ Cargo.lock
 
 # Dank Bot
 *.mp3
+*.wav
+start.bat
