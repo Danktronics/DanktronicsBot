@@ -150,14 +150,16 @@ impl EventHandler for MainHandler {
                 }*/
             },
             "leave" => {
-                // let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                // let mut manager = manager_lock.lock().await;
-                // if manager.get(message.guild_id.unwrap()).is_some() {
-                //     manager.remove(message.guild_id.unwrap());
-                //     check!(message.channel_id.say(&ctx.http, "Left").await);
-                // } else {
-                //     check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
-                // }
+                let manager = get_songbird!(&ctx);
+                if manager.get(message.guild_id.unwrap()).is_some() {
+                    if manager.remove(message.guild_id.unwrap()).await.is_ok() {
+                        check!(message.channel_id.say(&ctx.http, "Left").await);
+                    } else {
+                        check!(message.channel_id.say(&ctx.http, "Failed to leave").await);
+                    }
+                } else {
+                    check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
+                }
             },
             "read" => {
                 {
@@ -181,34 +183,33 @@ impl EventHandler for MainHandler {
                 }
             },
             "volume" => {
-                // if arguments.is_empty() {
-                //     check!(message.channel_id.say(&ctx.http, "You must provide the new volume level").await);
-                //     return;
-                // }
+                if arguments.is_empty() {
+                    check!(message.channel_id.say(&ctx.http, "You must provide the new volume level").await);
+                    return;
+                }
 
-                // let new_volume = match arguments[0].parse::<u16>() {
-                //     Ok(vol) => vol,
-                //     Err(_) => {
-                //         check!(message.channel_id.say(&ctx.http, "You must provide a valid number").await);
-                //         return;
-                //     }
-                // };
+                let new_volume = match arguments[0].parse::<u16>() {
+                    Ok(vol) => vol,
+                    Err(_) => {
+                        check!(message.channel_id.say(&ctx.http, "You must provide a valid number").await);
+                        return;
+                    }
+                };
 
-                // {
-                //     let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                //     let manager = manager_lock.lock().await;
-                //     if manager.get(message.guild_id.unwrap()).is_none() {
-                //         check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
-                //         return;
-                //     }
-                // }
+                {
+                    let manager = get_songbird!(&ctx);
+                    if manager.get(message.guild_id.unwrap()).is_none() {
+                        check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
+                        return;
+                    }
+                }
 
-                // let mut data = ctx.data.write().await;
-                // let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                // let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+                let mut data = ctx.data.write().await;
+                let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                // *guild_settings.volume.lock().await = new_volume;
-                // check!(message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await);
+                *guild_settings.volume.lock().await = new_volume;
+                check!(message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await);
             },
             _ => ()
         }
