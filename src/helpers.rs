@@ -2,7 +2,7 @@ use std::str::FromStr;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serenity::model::id::ChannelId;
-use serenity::model::channel::Message;
+use serenity::model::channel::{Message, Channel};
 use serenity::cache::Cache;
 use serenity::prelude::*;
 
@@ -13,11 +13,11 @@ lazy_static! {
 }
 
 pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
-    let guild = message.guild(&cache).await.unwrap();
+    let guild = message.guild(&cache).unwrap();
     let mut temp_msg = EMOTE_REGEX.replace_all(&URL_REGEX.replace_all(&message.content, "${3} link"), "${1} emote").into_owned();
 
     for user in &message.mentions {
-        let mut user_mention = user.mention();
+        let mut user_mention = user.mention().to_string();
         if !temp_msg.contains(&user_mention) {
             user_mention.insert(2, '!');
         }
@@ -30,9 +30,9 @@ pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
     }
 
     for role_id in &message.mention_roles {
-        let role_mention = role_id.mention();
+        let role_mention = role_id.mention().to_string();
 
-        if let Some(role) = role_id.to_role_cached(&cache).await {
+        if let Some(role) = role_id.to_role_cached(&cache) {
             temp_msg = temp_msg.replace(&role_mention, &format!("@{}", role.name));
         } else {
             temp_msg = temp_msg.replace(&role_mention, "@deleted-role");
@@ -42,7 +42,9 @@ pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
     let mut clean_content = temp_msg.clone();
     for channel in CHANNEL_REGEX.captures_iter(&temp_msg) {
         if guild.channels.contains_key(&ChannelId::from_str(&channel[1]).unwrap()) {
-            clean_content = clean_content.replace(&channel[0], &format!("{} channel", &guild.channels.get(&ChannelId::from_str(&channel[1]).unwrap()).unwrap().name));
+            if let Channel::Guild(guild_area) = guild.channels.get(&ChannelId::from_str(&channel[1]).unwrap()).unwrap() {
+                clean_content = clean_content.replace(&channel[0], &format!("{} channel", &guild_area.name));
+            }
         } else {
             clean_content = clean_content.replace(&channel[0], "deleted channel");
         }

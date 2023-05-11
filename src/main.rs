@@ -1,8 +1,12 @@
 use std::{
     env, sync::Arc, collections::HashMap
 };
+use songbird::{
+    SerenityInit,
+    CoreEvent
+};
 use serenity::{
-    client::{bridge::voice::ClientVoiceManager, Client, Context, EventHandler},
+    client::{/*bridge::voice::ClientVoiceManager,*/ Client, Context, EventHandler},
     model::{
         channel::{Message, Reaction, ReactionType}, 
         gateway::Ready,
@@ -14,7 +18,7 @@ use serenity::{
 };
 
 use model::{
-    voice::{Recorder, EmptyAudioSource},
+    // voice::{Recorder, EmptyAudioSource},
     guild::DankGuild,
     voice::create_tts_source
 };
@@ -22,11 +26,11 @@ use model::{
 mod model;
 mod helpers;
 
-struct VoiceManager;
+/*struct VoiceManager;
 
 impl TypeMapKey for VoiceManager {
     type Value = Arc<Mutex<ClientVoiceManager>>;
-}
+}*/
 
 struct DankGuildMap;
 
@@ -37,6 +41,7 @@ impl TypeMapKey for DankGuildMap {
 struct MainHandler;
 
 static PREFIX: &str = "d.";
+static BLACKLISTED_PHRASES: [&str; 2] = ["L", "l"];
 
 #[async_trait]
 impl EventHandler for MainHandler {
@@ -53,10 +58,15 @@ impl EventHandler for MainHandler {
         {
             let data = ctx.data.read().await;
             let guild_settings_map = data.get::<DankGuildMap>().expect("DankGuildMap not stored in client");
-            let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().0);
+            let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().as_u64());
             if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
                 check!(guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await);
             }
+        }
+
+        if BLACKLISTED_PHRASES.contains(&message.content.as_str()) {
+            check!(message.delete(&ctx).await);
+            return;
         }
 
         if !message.content.starts_with(PREFIX) {
@@ -70,7 +80,7 @@ impl EventHandler for MainHandler {
 
         match command {
             "join" => {
-                let channel_id = match ctx.cache.guild(&message.guild_id.unwrap()).await.unwrap().voice_states.get(&message.author.id) {
+                let channel_id = match message.guild_field(&ctx.cache, |guild| guild.voice_states.clone()).unwrap().get(&message.author.id) {
                     Some(voice_state) => voice_state.channel_id.unwrap(),
                     None => {
                         check!(message.channel_id.say(&ctx.http, "You must be in a voice channel").await);
@@ -78,28 +88,31 @@ impl EventHandler for MainHandler {
                     }
                 };
 
-                let channel = channel_id.to_channel_cached(&ctx.cache).await.unwrap().guild().unwrap();
-                if !channel.permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id).await).await.unwrap().connect() {
+                let channel = channel_id.to_channel_cached(&ctx.cache).unwrap().guild().unwrap();
+                if !channel.permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id)).unwrap().connect() {
                     check!(message.channel_id.say(&ctx.http, "I do not have permissions to join your channel").await);
                     return;
                 }
 
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                let mut manager = manager_lock.lock().await;
+                let mut manager = get_songbird!(&ctx);
                 {
                     let handler = manager.get(message.guild_id.unwrap());
-                    if handler.is_some() && handler.unwrap().channel_id.is_some() && handler.unwrap().channel_id.unwrap() == channel_id {
-                        check!(message.channel_id.say(&ctx.http, "I am already in this channel!").await);
-                        return;
+                    if let Some(handler_lock) = handler {
+                        let guild_connection = handler_lock.lock().await;
+                        if guild_connection.current_channel().is_some() && guild_connection.current_channel().unwrap() == channel_id.into() {
+                            check!(message.channel_id.say(&ctx.http, "I am already in this channel!").await);
+                            return;
+                        }
                     }
                 }
 
-                if manager.join(message.guild_id.unwrap(), channel_id).is_some() {
+                let (call, join_result) = manager.join(message.guild_id.unwrap(), channel_id).await;
+                if join_result.is_ok() {
                     let mut data = ctx.data.write().await;
                     let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
                     let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                    guild_settings.initialize_tts(manager_lock.clone());
+                    guild_settings.initialize_tts(call);
                     check!(message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel_id.name(&ctx.cache).await.unwrap())).await);
                 } else {
                     check!(message.channel_id.say(&ctx.http, "Failed to join your voice channel").await);
@@ -112,40 +125,45 @@ impl EventHandler for MainHandler {
                 check!(message.channel_id.say(&ctx.http, "You have given feedback! into the void lmao").await);
             },
             "record" => {
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                let mut manager = manager_lock.lock().await;
-                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
-                    handler.play(Box::new(EmptyAudioSource(5 * 1920)));
-                    handler.listen(Some(Arc::new(Recorder::new())));
-                    message.channel_id.say(&ctx.http, "Recording...");
-                } else {
-                    message.channel_id.say(&ctx.http, "I must be in a voice channel first");
-                }
-            },
-            "stop" => {
-                // let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                // let mut manager = manager_lock.lock();
-                // if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
-                //     handler.listen(None);
-                //     message.channel_id.say(&ctx.http, "Ended Recording");
+                // let manager = get_songbird!(&ctx);
+                // if let Some(handler_lock) = manager.get(message.guild_id.unwrap()) {
+                //     let mut handler = handler_lock.lock().await;
+
+                //     handler.play(Box::new(EmptyAudioSource(5 * 1920)));
+
+                //     handler.add_global_event(CoreEvent::VoicePacket.into(), Recorder::new());
+                //     // handler.listen(Some(Arc::new(Recorder::new())));
+                //     check!(message.channel_id.say(&ctx.http, "Recording...").await);
                 // } else {
-                //     message.channel_id.say(&ctx.http, "I must be in a voice channel first");
+                //     check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                 // }
             },
-            "leave" => {
-                let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
+            "stop" => {
+                /*let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
                 let mut manager = manager_lock.lock().await;
+                if let Some(handler) = manager.get_mut(message.guild_id.unwrap()) {
+                    handler.listen(None);
+                    handler.stop();
+                    check!(message.channel_id.say(&ctx.http, "Ended Recording").await);
+                } else {
+                    check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
+                }*/
+            },
+            "leave" => {
+                let manager = get_songbird!(&ctx);
                 if manager.get(message.guild_id.unwrap()).is_some() {
-                    manager.remove(message.guild_id.unwrap());
-                    check!(message.channel_id.say(&ctx.http, "Left").await);
+                    if manager.remove(message.guild_id.unwrap()).await.is_ok() {
+                        check!(message.channel_id.say(&ctx.http, "Left").await);
+                    } else {
+                        check!(message.channel_id.say(&ctx.http, "Failed to leave").await);
+                    }
                 } else {
                     check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                 }
             },
             "read" => {
                 {
-                    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                    let manager = manager_lock.lock().await;
+                    let manager = get_songbird!(&ctx);
                     if manager.get(message.guild_id.unwrap()).is_none() {
                         check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                         return;
@@ -179,8 +197,7 @@ impl EventHandler for MainHandler {
                 };
 
                 {
-                    let manager_lock = ctx.data.read().await.get::<VoiceManager>().cloned().expect("VoiceManager not stored in client");
-                    let manager = manager_lock.lock().await;
+                    let manager = get_songbird!(&ctx);
                     if manager.get(message.guild_id.unwrap()).is_none() {
                         check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                         return;
@@ -200,7 +217,7 @@ impl EventHandler for MainHandler {
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         if let ReactionType::Unicode(ref unicode) = reaction.emoji {
-            if (unicode != "⭐") {
+            if unicode != "⭐" {
                 return;
             }
         } else {
@@ -211,7 +228,7 @@ impl EventHandler for MainHandler {
             return;
         }
 
-        let stared_message = match ctx.cache.message(reaction.channel_id, reaction.message_id).await {
+        let stared_message = match ctx.cache.message(reaction.channel_id, reaction.message_id) {
             Some(message) => message,
             None => match reaction.message(&ctx.http).await {
                 Ok(message) => message,
@@ -219,14 +236,17 @@ impl EventHandler for MainHandler {
             }
         };
 
-        if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()).await {
-            if let Some(channel) = channels.values().find(|&c| c.name == "starboard" || c.name == "cool-messages") {
+        if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()) {
+            if let Some(channel) = channels.values().find(|&c| {
+                if let Channel::Guild(channel) = c {
+                    channel.name == "starboard" || channel.name == "cool-messages"} else {false}
+                }) {
                 let submitter = match reaction.user(&ctx).await {
                     Ok(user) => Some(format!("{} ({})", user.tag(), user.mention())),
                     Err(_) => None
                 };
 
-                check!(channel.send_message(ctx, |m| {
+                check!(channel.id().send_message(ctx, |m| {
                     m.embed(|e| {
                         e.author(|a| {
                             a.name(format!("{}#{:04}", stared_message.author.name, stared_message.author.discriminator));
@@ -264,14 +284,14 @@ impl EventHandler for MainHandler {
         }
     }
 
-    async fn voice_state_update(&self, ctx: Context, guild_id: Option<GuildId>, _old_state: Option<VoiceState>, new_state: VoiceState) {
-        if guild_id.is_none() || new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user_field(|user| user.id).await {
+    async fn voice_state_update(&self, ctx: Context, _old_state: Option<VoiceState>, new_state: VoiceState) {
+        if new_state.guild_id.is_none() || new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user_field(|user| user.id) {
             return;
         }
 
         let mut data = ctx.data.write().await;
         let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-        let guild_settings = guild_settings_map.get_mut(&guild_id.unwrap().0);
+        let guild_settings = guild_settings_map.get_mut(&new_state.guild_id.unwrap().0);
         if guild_settings.is_some() {
             guild_settings.unwrap().end_tts();
         }
@@ -283,18 +303,21 @@ async fn main() {
     println!("Starting up...");
 
     let token: String = env::var("TOKEN").expect("You must provide a token");
-    let mut client = Client::builder(&token)
+    let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_MEMBERS | GatewayIntents::GUILD_VOICE_STATES |
+    GatewayIntents::GUILD_MESSAGES | GatewayIntents::GUILD_MESSAGE_REACTIONS | GatewayIntents::MESSAGE_CONTENT;
+    let mut client = Client::builder(&token, intents)
         .event_handler(MainHandler)
+        .register_songbird()
         .await
         .expect("Ran into error while initializing client");
 
     {
         let mut data = client.data.write().await;
         data.insert::<DankGuildMap>(HashMap::default());
-        data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
+        // data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
     }
 
-    client.cache_and_http.cache.set_max_messages(7).await;
+    client.cache_and_http.cache.set_max_messages(7);
 
     if let Err(error) = client.start().await {
         println!("Ran into a fatal issue: {:?}", error);
@@ -307,5 +330,13 @@ macro_rules! check {
         if let Err(error) = $result {
             eprintln!("{:?}", error);
         }
+    }
+}
+
+#[macro_export]
+macro_rules! get_songbird {
+    ($ctx:expr) => {
+        songbird::get($ctx).await
+            .expect("Songbird not initialized").clone()
     }
 }
