@@ -14,7 +14,7 @@ lazy_static! {
     static ref MODIFY_PHRASES: HashMap<&'static str, Regex> = {
         let mut m = HashMap::new();
         let pairs: [(&str, &str); 6] = [
-            ("_", " ")
+            ("_", " "),
             ("owo", "ohwo"),
             ("uwu", "oowoo"),
             ("rly", "really"),
