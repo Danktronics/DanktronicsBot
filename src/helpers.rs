@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashMap;
 use serenity::model::id::ChannelId;
 use serenity::model::channel::{Message, Channel};
 use serenity::cache::Cache;
