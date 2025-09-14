@@ -175,6 +175,14 @@ impl EventHandler for MainHandler {
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
                 let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
+                {
+                    let mut inspiration = guild_settings.inspiration.lock().await;
+                    if *inspiration {
+                        *inspiration = false;
+                        return;
+                    }
+                }
+
                 guild_settings.initialize_inspiration(manager.get(message.guild_id.unwrap()).unwrap(), Arc::clone(&ctx.http), message.channel_id).await;
                 message.channel_id.say(&ctx.http, "Here comes some inspiration.").await;
             },
