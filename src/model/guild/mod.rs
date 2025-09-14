@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashSet;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio::sync::oneshot::{channel, Sender};
@@ -6,10 +7,11 @@ use futures::Future;
 use std::sync::Arc;
 use std::time::Duration;
 // use serenity::client::bridge::voice::ClientVoiceManager;
-use serenity::{prelude::*, async_trait};
+use serenity::{prelude::*, model::prelude::ChannelId, async_trait};
 use anyhow::{Error, bail};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use crate::create_tts_source;
+use crate::{create_tts_source, create_mp3_source};
+use serde::{Deserialize};
 
 #[derive(Debug)]
 enum TTSMessage {
@@ -21,6 +23,7 @@ pub struct DankGuild {
     pub volume: Arc<Mutex<u16>>,
     pub tts_channels: HashSet<u64>,
     tts_sender: Option<Mutex<UnboundedSender<TTSMessage>>>,
+    pub inspiration: Arc<Mutex<bool>>
 }
 
 
@@ -69,8 +72,54 @@ impl DankGuild {
             id,
             volume: Arc::new(Mutex::new(1)),
             tts_channels: HashSet::new(),
-            tts_sender: None
+            tts_sender: None,
+            inspiration: Arc::new(Mutex::new(false)),
         }
+    }
+
+    pub async fn initialize_inspiration(&mut self, voice_manager: Arc<Mutex<Call>>, http: Arc<serenity::http::Http>, channel_id: ChannelId,) {
+        *self.inspiration.lock().await = true;
+        let inspiration_lock = Arc::clone(&self.inspiration);
+        tokio::spawn(async move {
+            let mut retry_attempts = 0;
+            while *inspiration_lock.lock().await {
+                match get_inspiration().await {
+                    Ok(inspiration) => {
+                        retry_attempts = 0;
+                        let locked_audio;
+                                
+                        {
+                            let mut manager = voice_manager.lock().await;
+                            let possible_source = create_tts_source(&inspiration.mp3);
+                            if let Ok(source) = possible_source {
+                                locked_audio = manager.play_source(source);
+                            } else {
+                                println!("Error playing TTS: {:?}", possible_source.err());
+                                continue;
+                            }
+                        }
+        
+                        let (sender, receiver) = channel();
+                        let handler = Handler {sender: Mutex::new(Some(sender))};
+                        locked_audio.add_event(Event::Track(TrackEvent::End), handler);
+                        channel_id.say(&http, inspiration.get_text()).await;
+                        receiver.await;
+                    },
+                    Err(error) => {
+                        println!("{}", error);
+                        if retry_attempts >= 3 {
+                            *inspiration_lock.lock().await = false;
+                            break;
+                        }
+                        retry_attempts += 1;
+                        continue;
+                    }
+                }
+
+
+
+            }
+        });
     }
 
     pub fn initialize_tts(&mut self, voice_manager: Arc<Mutex<Call>>) {
@@ -133,5 +182,40 @@ impl DankGuild {
         }
 
         Ok(self.tts_sender.as_ref().unwrap().lock().await.send(TTSMessage::NewMessage(message))?)
+    }
+}
+
+async fn get_inspiration() -> Result<InspirationMetadata, Error> {
+    let json = reqwest::get("https://inspirobot.me/api?generateFlow=1")
+        .await?
+        .json::<InspirationMetadata>()
+        .await?;
+
+    // For some reason serde_json to_string will include quotes for serialization??
+    return Ok(json);
+}
+
+#[derive(Deserialize)]
+struct InspirationCaptionInstant {
+    pub text: Option<String>
+}
+
+#[derive(Deserialize)]
+struct InspirationMetadata {
+    pub mp3: String,
+    pub data: Vec<InspirationCaptionInstant>
+}
+
+impl InspirationMetadata {
+    pub fn get_text(&self) -> std::string::String {
+        let mut str: std::string::String = Default::default();
+        for ins_caption in &self.data {
+            if ins_caption.text.is_none() {
+                continue;
+            }
+            str.push_str(ins_caption.text.as_ref().unwrap().as_str());
+            str.push_str("\n");
+        }
+        str
     }
 }

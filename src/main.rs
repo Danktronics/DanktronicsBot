@@ -20,7 +20,8 @@ use serenity::{
 use model::{
     // voice::{Recorder, EmptyAudioSource},
     guild::DankGuild,
-    voice::create_tts_source
+    voice::create_tts_source,
+    voice::create_mp3_source
 };
 
 mod model;
@@ -160,6 +161,22 @@ impl EventHandler for MainHandler {
                 } else {
                     check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
                 }
+            },
+            "inspiration" => {
+                let manager = get_songbird!(&ctx);
+                {
+                    if manager.get(message.guild_id.unwrap()).is_none() {
+                        check!(message.channel_id.say(&ctx.http, "I must be in a voice channel first").await);
+                        return;
+                    }
+                }
+
+                let mut data = ctx.data.write().await;
+                let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+
+                guild_settings.initialize_inspiration(manager.get(message.guild_id.unwrap()).unwrap(), Arc::clone(&ctx.http), message.channel_id).await;
+                message.channel_id.say(&ctx.http, "Here comes some inspiration.").await;
             },
             "read" => {
                 {

@@ -207,3 +207,26 @@ pub fn create_tts_source(url: &str) -> Result<Input> {
     
     Ok(Input::new(true, Reader::Extension(Box::new(TTSSource { child })), Codec::Pcm, Container::Raw, None))
 }
+
+pub fn create_mp3_source(url: &str) -> Result<Input> {
+    let child = Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            url,
+            "-f",
+            "mp3",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            "-acodec",
+            "mp3",
+            "-",
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    
+    Ok(Input::new(true, Reader::Extension(Box::new(TTSSource { child })), Codec::Pcm, Container::Raw, None))
+}
