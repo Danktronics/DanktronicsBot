@@ -179,7 +179,7 @@ impl EventHandler for MainHandler {
                     let mut inspiration = guild_settings.inspiration.lock().await;
                     if *inspiration {
                         *inspiration = false;
-                        message.channel_id.say(&ctx.http, "Ending inspiration.").await;
+                        message.channel_id.say(&ctx.http, "Ending inspiration after current one.").await;
                         return;
                     }
                 }
