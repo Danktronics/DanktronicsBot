@@ -5,7 +5,7 @@ authors = ["Sei4or"]
 edition = "2018"
 
 [dependencies]
-serenity = { version = "0.11.5", default-features = false, features = ["client", "voice", "rustls_backend", "cache", "model"] }
+serenity = { version = "0.12.0", default-features = false, features = ["client", "voice", "rustls_backend", "cache", "model"] }
 tokio = { version = "1.21.2", features = ["macros", "sync", "time", "rt-multi-thread"] }
 songbird = { version = "0.3.2", features = ["gateway", "serenity-rustls"]}
 anyhow = "1.0"
