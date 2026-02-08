@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashMap;
 use serenity::model::id::ChannelId;
 use serenity::model::channel::{Message, Channel};
 use serenity::cache::Cache;
@@ -11,22 +10,6 @@ lazy_static! {
     static ref URL_REGEX: Regex = Regex::new(r"(https?://)?(www\.)?([-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6})\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*").unwrap();
     static ref EMOTE_REGEX: Regex = Regex::new(r"<a?(:\w+:)[0-9]+>").unwrap();
     static ref CHANNEL_REGEX: Regex = Regex::new(r"<#([0-9]+)>").unwrap();
-    static ref MODIFY_PHRASES: HashMap<&'static str, Regex> = {
-        let mut m = HashMap::new();
-        let pairs: [(&str, &str); 6] = [
-            ("_", " "),
-            ("owo", "ohwo"),
-            ("uwu", "oowoo"),
-            ("rly", "really"),
-            ("ppl", "people"),
-            ("wtf", "what the fuck")
-        ];
-        for &(find, replace) in &pairs {
-            let regex = format!(r"\b{}\b", regex::escape(find));
-            m.insert(replace, Regex::new(&regex).unwrap());
-        }
-        m
-    };
 }
 
 pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
@@ -59,9 +42,8 @@ pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
     let mut clean_content = temp_msg.clone();
     for channel in CHANNEL_REGEX.captures_iter(&temp_msg) {
         if guild.channels.contains_key(&ChannelId::from_str(&channel[1]).unwrap()) {
-            if let Channel::Guild(guild_area) = guild.channels.get(&ChannelId::from_str(&channel[1]).unwrap()).unwrap() {
-                clean_content = clean_content.replace(&channel[0], &format!("{} channel", &guild_area.name));
-            }
+            let guild_channel = guild.channels.get(&ChannelId::from_str(&channel[1]).unwrap()).unwrap();
+            clean_content = clean_content.replace(&channel[0], &format!("{} channel", &guild_channel.name));
         } else {
             clean_content = clean_content.replace(&channel[0], "deleted channel");
         }
@@ -71,9 +53,8 @@ pub async fn clean_message_content(message: &Message, cache: &Cache) -> String {
         clean_content = clean_content.replace(&format!("<#{}>", channel.id), &channel.name);
     }
 
-    for (replace, re) in MODIFY_PHRASES.iter() {
-        clean_content = re.replace_all(&clean_content, *replace).into_owned();
-    }
+    clean_content = clean_content.replace("owo", "ohwo");
+    clean_content = clean_content.replace("uwu", "oowoo");
 
     clean_content
 }

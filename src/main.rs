@@ -7,12 +7,14 @@ use songbird::{
 };
 use serenity::{
     client::{/*bridge::voice::ClientVoiceManager,*/ Client, Context, EventHandler},
+    builder::*,
     model::{
         channel::{Message, Reaction, ReactionType}, 
         gateway::Ready,
         voice::VoiceState,
         prelude::*
     },
+    gateway::ActivityData,
     prelude::*,
     async_trait
 };
@@ -23,6 +25,7 @@ use model::{
     voice::create_tts_source,
     voice::create_mp3_source
 };
+
 
 mod model;
 mod helpers;
@@ -47,20 +50,20 @@ static BLACKLISTED_PHRASES: [&str; 2] = ["L", "l"];
 #[async_trait]
 impl EventHandler for MainHandler {
     async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("Connected as {}#{:04}", ready.user.name, ready.user.discriminator);
-        ctx.set_activity(Activity::playing(&format!("the people here | {}help", PREFIX))).await;
+        println!("Connected as {}#{:04}", ready.user.name, ready.user.discriminator.unwrap());
+        ctx.set_activity(Some(ActivityData::playing(&format!("the people here | {}help", PREFIX))));
     }
 
     async fn message(&self, ctx: Context, message: Message) {
-        if message.is_private() {
+        if message.guild_id.is_none() {
             return;
         }
 
         {
             let data = ctx.data.read().await;
             let guild_settings_map = data.get::<DankGuildMap>().expect("DankGuildMap not stored in client");
-            let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().as_u64());
-            if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.0) {
+            let guild_settings = guild_settings_map.get(&message.guild_id.unwrap().into());
+            if guild_settings.is_some() && guild_settings.unwrap().tts_channels.contains(&message.channel_id.into()) {
                 check!(guild_settings.unwrap().say_message(helpers::clean_message_content(&message, &ctx.cache).await).await);
             }
         }
@@ -81,7 +84,10 @@ impl EventHandler for MainHandler {
 
         match command {
             "join" => {
-                let channel_id = match message.guild_field(&ctx.cache, |guild| guild.voice_states.clone()).unwrap().get(&message.author.id) {
+                // I'm sorry I know cloning it here is expensive but this is a small bot
+                let guild = message.guild(&ctx.cache).unwrap().clone();
+
+                let channel_id = match guild.voice_states.get(&message.author.id) {
                     Some(voice_state) => voice_state.channel_id.unwrap(),
                     None => {
                         check!(message.channel_id.say(&ctx.http, "You must be in a voice channel").await);
@@ -89,8 +95,9 @@ impl EventHandler for MainHandler {
                     }
                 };
 
-                let channel = channel_id.to_channel_cached(&ctx.cache).unwrap().guild().unwrap();
-                if !channel.permissions_for_user(&ctx.cache, &ctx.cache.current_user_field(|user| user.id)).unwrap().connect() {
+                let channel = guild.channels.get(&channel_id).unwrap();
+                let own_member = guild.members.get(&ctx.cache.current_user().id).unwrap();
+                if !message.guild(&ctx.cache).unwrap().user_permissions_in(channel, own_member).connect() {
                     check!(message.channel_id.say(&ctx.http, "I do not have permissions to join your channel").await);
                     return;
                 }
@@ -107,15 +114,16 @@ impl EventHandler for MainHandler {
                     }
                 }
 
-                let (call, join_result) = manager.join(message.guild_id.unwrap(), channel_id).await;
+                let join_result = manager.join(message.guild_id.unwrap(), channel_id).await;
                 if join_result.is_ok() {
                     let mut data = ctx.data.write().await;
                     let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                    let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+                    let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().into()).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                    guild_settings.initialize_tts(call);
-                    check!(message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel_id.name(&ctx.cache).await.unwrap())).await);
+                    guild_settings.initialize_tts(join_result.unwrap());
+                    check!(message.channel_id.say(&ctx.http, format!("Successfully joined **{}**", channel.name)).await);
                 } else {
+                    println!("{}", join_result.unwrap_err());
                     check!(message.channel_id.say(&ctx.http, "Failed to join your voice channel").await);
                 }
             },
@@ -173,7 +181,7 @@ impl EventHandler for MainHandler {
 
                 let mut data = ctx.data.write().await;
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().into()).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
                 {
                     let mut inspiration = guild_settings.inspiration.lock().await;
@@ -198,13 +206,13 @@ impl EventHandler for MainHandler {
 
                 let mut data = ctx.data.write().await;
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().into()).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
-                if guild_settings.tts_channels.contains(&message.channel_id.0) {
-                    guild_settings.tts_channels.remove(&message.channel_id.0);
+                if guild_settings.tts_channels.contains(&message.channel_id.into()) {
+                    guild_settings.tts_channels.remove(&message.channel_id.into());
                     check!(message.channel_id.say(&ctx.http, "Removed this channel from TTS").await);
                 } else {
-                    guild_settings.tts_channels.insert(message.channel_id.0);
+                    guild_settings.tts_channels.insert(message.channel_id.into());
                     check!(message.channel_id.say(&ctx.http, "Added this channel to TTS").await);
                 }
             },
@@ -232,7 +240,7 @@ impl EventHandler for MainHandler {
 
                 let mut data = ctx.data.write().await;
                 let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().0).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
+                let guild_settings = guild_settings_map.entry(message.guild_id.unwrap().into()).or_insert_with(|| DankGuild::new(message.guild_id.unwrap().into()));
 
                 *guild_settings.volume.lock().await = new_volume;
                 check!(message.channel_id.say(&ctx.http, format!("Successfully set TTS volume to {}", new_volume)).await);
@@ -254,70 +262,50 @@ impl EventHandler for MainHandler {
             return;
         }
 
-        let stared_message = match ctx.cache.message(reaction.channel_id, reaction.message_id) {
-            Some(message) => message,
-            None => match reaction.message(&ctx.http).await {
-                Ok(message) => message,
-                Err(_e) => return
-            }
-        };
+        let stared_message = reaction.message(&ctx.http).await.unwrap();
 
-        if let Some(channels) = ctx.cache.guild_field(reaction.guild_id.unwrap(), |guild| guild.channels.clone()) {
-            if let Some(channel) = channels.values().find(|&c| {
-                if let Channel::Guild(channel) = c {
-                    channel.name == "starboard" || channel.name == "cool-messages"} else {false}
-                }) {
+        if let Ok(channels) = reaction.guild_id.unwrap().channels(&ctx.http).await {
+            if let Some(channel) = channels.values().find(|&channel| channel.name == "starboard" || channel.name == "cool-messages") {
                 let submitter = match reaction.user(&ctx).await {
                     Ok(user) => Some(format!("{} ({})", user.tag(), user.mention())),
                     Err(_) => None
                 };
 
-                check!(channel.id().send_message(ctx, |m| {
-                    m.embed(|e| {
-                        e.author(|a| {
-                            a.name(format!("{}#{:04}", stared_message.author.name, stared_message.author.discriminator));
-                            a.icon_url(stared_message.author.face());
-                            a
-                        });
-                        if !stared_message.content.is_empty() {
-                            e.description(&stared_message.content);
-                        }
-                        e.footer(|f| {
-                            f.text(stared_message.id.to_string());
-                            f
-                        });
-                        e.timestamp(&stared_message.timestamp);
-                        if !stared_message.attachments.is_empty() {
-                            e.image(&stared_message.attachments[0].url);
-                        }
-                        if !stared_message.embeds.is_empty() {
-                            if let Some(ref description) = stared_message.embeds[0].description {
-                                e.field("Embed", format!("> {}", description), false);
-                            }
-                        }
-                        e.field("Quick Link", format!("[Click Here]({})", format!("https://discord.com/channels/{}/{}/{}", reaction.guild_id.unwrap().0, stared_message.channel_id.0, stared_message.id.0)), true);
-                        if let Some(submitter) = submitter {
-                            e.field("Submitter", submitter, true);
-                        }
-                        e.color(16765448);
+                let mut embed = CreateEmbed::new()
+                    .author(CreateEmbedAuthor::new(&stared_message.author.name)).image(stared_message.author.face());
+                if !stared_message.content.is_empty() {
+                    embed = embed.description(&stared_message.content);
+                }
+                embed = embed.footer(CreateEmbedFooter::new(stared_message.id.to_string()));
+                embed = embed.timestamp(stared_message.timestamp);
+                if !stared_message.attachments.is_empty() {
+                    embed = embed.image(&stared_message.attachments[0].url);
+                }
+                if !stared_message.embeds.is_empty() {
+                    if let Some(ref description) = stared_message.embeds[0].description {
+                        embed = embed.field("Embed", format!("> {}", description), false);
+                    }
+                }
+                embed = embed.field("Quick Link", format!("[Click Here]({})", format!("https://discord.com/channels/{}/{}/{}", reaction.guild_id.unwrap(), stared_message.channel_id, stared_message.id)), true);
+                if let Some(submitter) = submitter {
+                    embed = embed.field("Submitter", submitter, true);
+                }
+                embed = embed.color(16765448);
 
-                        e
-                    });
-
-                    m
-                }).await);
+                let builder = CreateMessage::new().add_embed(embed);
+                check!(channel.send_message(ctx, builder).await);
             }
         }
     }
 
     async fn voice_state_update(&self, ctx: Context, _old_state: Option<VoiceState>, new_state: VoiceState) {
-        if new_state.guild_id.is_none() || new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user_field(|user| user.id) {
+        if new_state.channel_id.is_some() || new_state.user_id != ctx.cache.current_user().id {
             return;
         }
 
         let mut data = ctx.data.write().await;
         let guild_settings_map = data.get_mut::<DankGuildMap>().expect("DankGuildMap not stored in client");
-        let guild_settings = guild_settings_map.get_mut(&new_state.guild_id.unwrap().0);
+        let guild_settings = guild_settings_map.get_mut(&new_state.guild_id.unwrap().into());
         if guild_settings.is_some() {
             guild_settings.unwrap().end_tts();
         }
@@ -342,8 +330,6 @@ async fn main() {
         data.insert::<DankGuildMap>(HashMap::default());
         // data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
     }
-
-    client.cache_and_http.cache.set_max_messages(7);
 
     if let Err(error) = client.start().await {
         println!("Ran into a fatal issue: {:?}", error);

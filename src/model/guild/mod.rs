@@ -92,7 +92,7 @@ impl DankGuild {
                             let mut manager = voice_manager.lock().await;
                             let possible_source = create_tts_source(&inspiration.mp3);
                             if let Ok(source) = possible_source {
-                                locked_audio = manager.play_source(source);
+                                locked_audio = manager.play(source.into());
                             } else {
                                 println!("Error playing TTS: {:?}", possible_source.err());
                                 continue;
@@ -142,7 +142,7 @@ impl DankGuild {
                             let mut manager = voice_manager.lock().await;
                             let possible_source = create_tts_source(&format!("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q={}", utf8_percent_encode(&tts_message, NON_ALPHANUMERIC)));
                                 if let Ok(source) = possible_source {
-                                    locked_audio = manager.play_source(source);
+                                    locked_audio = manager.play(source.into());
                                 } else {
                                     println!("Error playing TTS: {:?}", possible_source.err());
                                     continue;

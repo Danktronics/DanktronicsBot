@@ -15,11 +15,12 @@ use std::io::{Read, Seek, ErrorKind, Result, SeekFrom};
 use std::process::{Child, Command, Stdio};
 use serenity::async_trait;
 use std::time::{SystemTime, UNIX_EPOCH};
+use symphonia::core::io::MediaSource;
 use songbird::{
     EventHandler as VoiceEventHandler,
-    EventContext, input::{Input, Metadata, Reader, Codec, Container}
+    EventContext, input::{Input, Metadata, RawAdapter, /*Reader, Codec, Container*/}
 };
-use songbird::input::reader::MediaSource;
+// use songbird::input::reader::MediaSource;
 
 // pub struct Recorder {
 //     writer_sender: UnboundedSender<Vec<i16>>
@@ -164,26 +165,36 @@ impl MediaSource for TTSSource {
     }
 
     fn byte_len(&self) -> Option<u64> {
-        None
+        return None
     }
-    // async fn is_stereo(&mut self) -> bool {
-    //     true
-    // }
+}
 
-    // async fn get_type(&self) -> AudioType {
-    //     AudioType::Pcm
-    // }
+// impl MediaSource for TTSSource {
+//     fn is_seekable(&self) -> bool {
+//         true
+//     }
+
+//     fn byte_len(&self) -> Option<u64> {
+//         None
+//     }
+//     // async fn is_stereo(&mut self) -> bool {
+//     //     true
+//     // }
+
+//     // async fn get_type(&self) -> AudioType {
+//     //     AudioType::Pcm
+//     // }
 
     
 
-    // async fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
-    //     todo!()
-    // }
+//     // async fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
+//     //     todo!()
+//     // }
 
-    // async fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
-    //     todo!()
-    // }
-}
+//     // async fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
+//     //     todo!()
+//     // }
+// }
 
 pub fn create_tts_source(url: &str) -> Result<Input> {
     let child = Command::new("ffmpeg")
@@ -191,13 +202,13 @@ pub fn create_tts_source(url: &str) -> Result<Input> {
             "-i",
             url,
             "-f",
-            "s16le",
+            "f32le",
             "-ac",
             "2",
             "-ar",
             "48000",
             "-acodec",
-            "pcm_s16le",
+            "pcm_f32le",
             "-",
         ])
         .stdin(Stdio::null())
@@ -205,7 +216,7 @@ pub fn create_tts_source(url: &str) -> Result<Input> {
         .stdout(Stdio::piped())
         .spawn()?;
     
-    Ok(Input::new(true, Reader::Extension(Box::new(TTSSource { child })), Codec::Pcm, Container::Raw, None))
+    Ok(RawAdapter::new(TTSSource { child }, 48000, 2).into())
 }
 
 pub fn create_mp3_source(url: &str) -> Result<Input> {
@@ -228,5 +239,5 @@ pub fn create_mp3_source(url: &str) -> Result<Input> {
         .stdout(Stdio::piped())
         .spawn()?;
     
-    Ok(Input::new(true, Reader::Extension(Box::new(TTSSource { child })), Codec::Pcm, Container::Raw, None))
+    Ok(RawAdapter::new(TTSSource { child }, 48000, 2).into())
 }
