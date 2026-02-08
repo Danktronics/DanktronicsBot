@@ -10,7 +10,7 @@ use std::time::Duration;
 use serenity::{prelude::*, model::prelude::ChannelId, async_trait};
 use anyhow::{Error, bail};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use crate::{create_tts_source, create_mp3_source};
+use crate::{create_tts_source};
 use serde::{Deserialize};
 
 #[derive(Debug)]

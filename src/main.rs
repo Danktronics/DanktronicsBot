@@ -20,10 +20,8 @@ use serenity::{
 };
 
 use model::{
-    // voice::{Recorder, EmptyAudioSource},
     guild::DankGuild,
-    voice::create_tts_source,
-    voice::create_mp3_source
+    voice::create_tts_source
 };
 
 
@@ -272,7 +270,7 @@ impl EventHandler for MainHandler {
                 };
 
                 let mut embed = CreateEmbed::new()
-                    .author(CreateEmbedAuthor::new(&stared_message.author.name)).image(stared_message.author.face());
+                    .author(CreateEmbedAuthor::new(&stared_message.author.name).icon_url(stared_message.author.face()));
                 if !stared_message.content.is_empty() {
                     embed = embed.description(&stared_message.content);
                 }

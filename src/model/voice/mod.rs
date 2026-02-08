@@ -134,28 +134,6 @@ impl Seek for TTSSource {
 impl Read for TTSSource {
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize> {
         self.child.stdout.as_mut().unwrap().read(buffer)
-        // for (i, val) in buffer.iter_mut().enumerate() {
-        //     let mut raw_data = [0];
-        //     match self.child.stdout.as_mut().unwrap().read(&mut raw_data) {
-        //         Ok(bytes_read) => {
-        //             if bytes_read == 0 {
-        //                 return Ok(0);
-        //             }
-                    
-        //             *val = raw_data[0];
-        //             // *val = i16::from_le_bytes(raw_data);
-        //         },
-        //         Err(e) => {
-        //             if e.kind() == ErrorKind::UnexpectedEof {
-        //                 return Ok(i);
-        //             }
-
-        //             return Ok(0);
-        //         }
-        //     }
-        // }
-
-        // Ok(buffer.len())
     }
 }
 
@@ -168,33 +146,6 @@ impl MediaSource for TTSSource {
         return None
     }
 }
-
-// impl MediaSource for TTSSource {
-//     fn is_seekable(&self) -> bool {
-//         true
-//     }
-
-//     fn byte_len(&self) -> Option<u64> {
-//         None
-//     }
-//     // async fn is_stereo(&mut self) -> bool {
-//     //     true
-//     // }
-
-//     // async fn get_type(&self) -> AudioType {
-//     //     AudioType::Pcm
-//     // }
-
-    
-
-//     // async fn read_opus_frame(&mut self) -> std::option::Option<std::vec::Vec<u8>> {
-//     //     todo!()
-//     // }
-
-//     // async fn decode_and_add_opus_frame(&mut self, _: &mut [f32; 1920], _: f32) -> std::option::Option<usize> {
-//     //     todo!()
-//     // }
-// }
 
 pub fn create_tts_source(url: &str) -> Result<Input> {
     let child = Command::new("ffmpeg")
@@ -209,29 +160,6 @@ pub fn create_tts_source(url: &str) -> Result<Input> {
             "48000",
             "-acodec",
             "pcm_f32le",
-            "-",
-        ])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .stdout(Stdio::piped())
-        .spawn()?;
-    
-    Ok(RawAdapter::new(TTSSource { child }, 48000, 2).into())
-}
-
-pub fn create_mp3_source(url: &str) -> Result<Input> {
-    let child = Command::new("ffmpeg")
-        .args(&[
-            "-i",
-            url,
-            "-f",
-            "mp3",
-            "-ac",
-            "2",
-            "-ar",
-            "48000",
-            "-acodec",
-            "mp3",
             "-",
         ])
         .stdin(Stdio::null())
