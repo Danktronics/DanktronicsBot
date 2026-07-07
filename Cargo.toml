@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 serenity = { version = "0.12.5", default-features = false, features = ["client", "voice", "rustls_backend", "cache", "model", "gateway", "builder"] }
 tokio = { version = "1.21.2", features = ["macros", "sync", "time", "rt-multi-thread"] }
-songbird = { version = "0.5.0"}
+songbird = { version = "0.6.0"}
 anyhow = "1.0"
 percent-encoding = "2.1.0"
 byteorder = "1.3.4"
